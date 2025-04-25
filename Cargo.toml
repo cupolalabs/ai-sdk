@@ -1,6 +1,7 @@
-[package]
-name = "ai-sdk"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
+[workspace]
+members = [ 
+  "crates/ai-sdk", 
+  "crates/providers",
+  "crates/utils"
+]
+resolver = "2"
