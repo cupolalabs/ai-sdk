@@ -1,11 +1,13 @@
 use crate::errors::ContentError;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 //------------------------------------------------------------------------------
 // Basic Enums
 //------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
     User,
     Assistant,
@@ -27,7 +29,8 @@ impl FromStr for Role {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ContentType {
     InputText,
     InputImage,
@@ -51,32 +54,34 @@ impl FromStr for ContentType {
 // Content Structs
 //------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TextContent<'a> {
     pub type_field: ContentType, // always InputText
     pub text: &'a str,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ImageContent<'a> {
     pub type_field: ContentType, // always InputImage
     pub image_url: &'a str,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct FileWithFileIdContent<'a> {
     pub type_field: ContentType, // always InputFile,
     pub file_id: &'a str,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct FileWithBase64Content<'a> {
     pub type_field: ContentType, // always InputFile
     pub filename: &'a str,
     pub file_data: &'a str, // base64 goes here
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+#[serde(untagged)]
 pub enum Content<'a> {
     Text(TextContent<'a>),
     Image(ImageContent<'a>),
@@ -88,7 +93,8 @@ pub enum Content<'a> {
 // Input Structs and Implementation
 //------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct SingleContentInput<'a> {
     pub role: Role,
     pub content: &'a str,
@@ -100,7 +106,8 @@ impl<'a> SingleContentInput<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct MultiContentInput<'a> {
     pub role: Role,
     pub content: Vec<Content<'a>>,
@@ -160,7 +167,7 @@ impl<'a> MultiContentInput<'a> {
 // Main Input Enum and Implementation
 //------------------------------------------------------------------------------
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Input<'a> {
     Text(&'a str),
     SingleContent(SingleContentInput<'a>),
@@ -344,10 +351,7 @@ mod tests {
     fn it_builds_single_content_input_wrapper() {
         let content = "test content";
         let role = Role::User;
-        let expected = Input::SingleContent(SingleContentInput {
-            role: role,
-            content,
-        });
+        let expected = Input::SingleContent(SingleContentInput { role, content });
 
         let result = Input::build_single_content_input(role, content);
         assert_eq!(result, expected);
@@ -373,12 +377,14 @@ mod tests {
         ];
 
         let expected = Input::MultiContent(MultiContentInput {
-            role: role,
+            role,
             content: expected_content,
         });
 
         let result = Input::build_multi_content_input(role, content_payloads);
         assert_eq!(result, expected);
+
+        println!("result: {:?}", serde_json::to_string(&result).unwrap());
     }
 
     #[test]
