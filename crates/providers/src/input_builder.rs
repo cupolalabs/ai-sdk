@@ -56,24 +56,28 @@ impl FromStr for ContentType {
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TextContent<'a> {
+    #[serde(rename = "type")]
     pub type_field: ContentType, // always InputText
     pub text: &'a str,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ImageContent<'a> {
+    #[serde(rename = "type")]
     pub type_field: ContentType, // always InputImage
     pub image_url: &'a str,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct FileWithFileIdContent<'a> {
+    #[serde(rename = "type")]
     pub type_field: ContentType, // always InputFile,
     pub file_id: &'a str,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct FileWithBase64Content<'a> {
+    #[serde(rename = "type")]
     pub type_field: ContentType, // always InputFile
     pub filename: &'a str,
     pub file_data: &'a str, // base64 goes here
@@ -168,6 +172,7 @@ impl<'a> MultiContentInput<'a> {
 //------------------------------------------------------------------------------
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Input<'a> {
     Text(&'a str),
     SingleContent(SingleContentInput<'a>),
@@ -383,8 +388,6 @@ mod tests {
 
         let result = Input::build_multi_content_input(role, content_payloads);
         assert_eq!(result, expected);
-
-        println!("result: {:?}", serde_json::to_string(&result).unwrap());
     }
 
     #[test]
