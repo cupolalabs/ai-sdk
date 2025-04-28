@@ -69,7 +69,7 @@ pub struct ImageContent<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct FileWithFileIdContent<'a> {
+pub struct FileWithIdContent<'a> {
     #[serde(rename = "type")]
     pub type_field: ContentType, // always InputFile,
     pub file_id: &'a str,
@@ -89,8 +89,39 @@ pub struct FileWithBase64Content<'a> {
 pub enum Content<'a> {
     Text(TextContent<'a>),
     Image(ImageContent<'a>),
-    FileWithFileId(FileWithFileIdContent<'a>),
+    FileWithId(FileWithIdContent<'a>),
     FileWithBase64(FileWithBase64Content<'a>),
+}
+
+impl<'a> Content<'a> {
+    pub fn build_text(text: &'a str) -> Self {
+        Self::Text(TextContent {
+            type_field: ContentType::InputText,
+            text,
+        })
+    }
+
+    pub fn build_image(image_url: &'a str) -> Self {
+        Self::Image(ImageContent {
+            type_field: ContentType::InputImage,
+            image_url,
+        })
+    }
+
+    pub fn build_file_with_id(file_id: &'a str) -> Self {
+        Self::FileWithId(FileWithIdContent {
+            type_field: ContentType::InputFile,
+            file_id,
+        })
+    }
+
+    pub fn build_file_with_base64(filename: &'a str, file_data: &'a str) -> Self {
+        Self::FileWithBase64(FileWithBase64Content {
+            type_field: ContentType::InputFile,
+            filename,
+            file_data,
+        })
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -117,48 +148,43 @@ pub struct MultiContentInput<'a> {
     pub content: Vec<Content<'a>>,
 }
 
-pub enum ContentPayload<'a> {
-    Text(&'a str),
-    Image(&'a str),
-    FileWithFileId(&'a str),
-    FileWithBase64(&'a str, &'a str),
+#[derive(Clone, Default)]
+pub struct ContentPayload<'a> {
+    pub content_vec: Vec<Content<'a>>,
+}
+
+impl<'a> ContentPayload<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add_text(mut self, text: &'a str) -> Self {
+        self.content_vec.push(Content::build_text(text));
+        self
+    }
+
+    pub fn add_image(mut self, image_url: &'a str) -> Self {
+        self.content_vec.push(Content::build_image(image_url));
+        self
+    }
+
+    pub fn add_file_with_id(mut self, file_id: &'a str) -> Self {
+        self.content_vec.push(Content::build_file_with_id(file_id));
+        self
+    }
+
+    pub fn add_file_with_base64(mut self, filename: &'a str, file_data: &'a str) -> Self {
+        self.content_vec
+            .push(Content::build_file_with_base64(filename, file_data));
+        self
+    }
 }
 
 impl<'a> MultiContentInput<'a> {
-    fn build(role: Role, payload: Vec<ContentPayload<'a>>) -> Self {
-        let mut content_vec: Vec<Content<'a>> = Vec::new();
-
-        payload.iter().for_each(|p| match p {
-            ContentPayload::Text(text) => {
-                content_vec.push(Content::Text(TextContent {
-                    type_field: ContentType::InputText,
-                    text,
-                }));
-            }
-            ContentPayload::Image(image_url) => {
-                content_vec.push(Content::Image(ImageContent {
-                    type_field: ContentType::InputImage,
-                    image_url,
-                }));
-            }
-            ContentPayload::FileWithFileId(file_id) => {
-                content_vec.push(Content::FileWithFileId(FileWithFileIdContent {
-                    type_field: ContentType::InputFile,
-                    file_id,
-                }));
-            }
-            ContentPayload::FileWithBase64(filename, file_data) => {
-                content_vec.push(Content::FileWithBase64(FileWithBase64Content {
-                    type_field: ContentType::InputFile,
-                    filename,
-                    file_data,
-                }));
-            }
-        });
-
+    fn build(role: Role, payload: ContentPayload<'a>) -> Self {
         Self {
             role,
-            content: content_vec,
+            content: payload.content_vec,
         }
     }
 
@@ -188,7 +214,7 @@ impl<'a> Input<'a> {
         Self::SingleContent(SingleContentInput::build(role, content))
     }
 
-    pub fn build_multi_content_input(role: Role, payload: Vec<ContentPayload<'a>>) -> Self {
+    pub fn build_multi_content_input(role: Role, payload: ContentPayload<'a>) -> Self {
         Self::MultiContent(MultiContentInput::build(role, payload))
     }
 
@@ -276,36 +302,17 @@ mod tests {
 
     #[test]
     fn it_builds_multi_content_input() {
-        let content_payloads = vec![
-            ContentPayload::Text("test content"),
-            ContentPayload::Image("http://image.url"),
-            ContentPayload::FileWithFileId("file_id"),
-            ContentPayload::FileWithBase64("filename", "file_data"),
-        ];
+        let payload = ContentPayload::new()
+            .add_text("test content")
+            .add_image("http://image.url")
+            .add_file_with_id("file_id")
+            .add_file_with_base64("filename", "file_data");
 
         let expected = MultiContentInput {
             role: Role::User,
-            content: vec![
-                Content::Text(TextContent {
-                    type_field: ContentType::InputText,
-                    text: "test content",
-                }),
-                Content::Image(ImageContent {
-                    type_field: ContentType::InputImage,
-                    image_url: "http://image.url",
-                }),
-                Content::FileWithFileId(FileWithFileIdContent {
-                    type_field: ContentType::InputFile,
-                    file_id: "file_id",
-                }),
-                Content::FileWithBase64(FileWithBase64Content {
-                    type_field: ContentType::InputFile,
-                    filename: "filename",
-                    file_data: "file_data",
-                }),
-            ],
+            content: payload.content_vec.clone(),
         };
-        let result = MultiContentInput::build(Role::User, content_payloads);
+        let result = MultiContentInput::build(Role::User, payload);
 
         assert_eq!(result, expected);
     }
@@ -315,26 +322,13 @@ mod tests {
         let mut multi_content_input = MultiContentInput {
             role: Role::User,
             content: vec![
-                Content::Text(TextContent {
-                    type_field: ContentType::InputText,
-                    text: "test content",
-                }),
-                Content::Image(ImageContent {
-                    type_field: ContentType::InputImage,
-                    image_url: "http://image.url",
-                }),
-                Content::FileWithFileId(FileWithFileIdContent {
-                    type_field: ContentType::InputFile,
-                    file_id: "file_id",
-                }),
+                Content::build_text("test content"),
+                Content::build_image("http://image.url"),
+                Content::build_file_with_id("file_id"),
             ],
         };
 
-        let content_to_add = Content::FileWithBase64(FileWithBase64Content {
-            type_field: ContentType::InputFile,
-            filename: "filename",
-            file_data: "file_data",
-        });
+        let content_to_add = Content::build_file_with_base64("filename", "file_data");
 
         multi_content_input.append_content(content_to_add.clone());
 
@@ -356,7 +350,7 @@ mod tests {
     fn it_builds_single_content_input_wrapper() {
         let content = "test content";
         let role = Role::User;
-        let expected = Input::SingleContent(SingleContentInput { role, content });
+        let expected = Input::SingleContent(SingleContentInput::build(role, content));
 
         let result = Input::build_single_content_input(role, content);
         assert_eq!(result, expected);
@@ -364,43 +358,26 @@ mod tests {
 
     #[test]
     fn it_builds_multi_content_input_wrapper() {
-        let content_payloads = vec![
-            ContentPayload::Text("test content"),
-            ContentPayload::Image("http://image.url"),
-        ];
+        let payload = ContentPayload::new()
+            .add_text("test content")
+            .add_image("http://image.url");
+
         let role = Role::Assistant;
 
-        let expected_content = vec![
-            Content::Text(TextContent {
-                type_field: ContentType::InputText,
-                text: "test content",
-            }),
-            Content::Image(ImageContent {
-                type_field: ContentType::InputImage,
-                image_url: "http://image.url",
-            }),
-        ];
+        let expected = Input::MultiContent(MultiContentInput::build(role, payload.clone()));
 
-        let expected = Input::MultiContent(MultiContentInput {
-            role,
-            content: expected_content,
-        });
-
-        let result = Input::build_multi_content_input(role, content_payloads);
+        let result = Input::build_multi_content_input(role, payload);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn it_appends_content_to_multi_content_input_wrapper() {
-        let initial_content = vec![ContentPayload::Text("initial text")];
+        let payload = ContentPayload::new().add_text("initial");
         let role = Role::System;
 
-        let mut input = Input::build_multi_content_input(role, initial_content);
+        let mut input = Input::build_multi_content_input(role, payload);
 
-        let content_to_add = Content::Image(ImageContent {
-            type_field: ContentType::InputImage,
-            image_url: "http://new.image.url",
-        });
+        let content_to_add = Content::build_image("http://image.url");
 
         let append_result = input.append_content(content_to_add.clone());
         assert!(append_result.is_ok());
@@ -417,10 +394,7 @@ mod tests {
     fn it_returns_error_when_appending_to_non_multi_content() {
         let mut text_input = Input::build_text_input("simple text");
 
-        let content_to_add = Content::Text(TextContent {
-            type_field: ContentType::InputText,
-            text: "additional text",
-        });
+        let content_to_add = Content::build_text("text content");
 
         let result = text_input.append_content(content_to_add);
         assert_eq!(result, Err(ContentError::UnableToAppend));

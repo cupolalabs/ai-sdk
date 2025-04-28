@@ -1,40 +1,7 @@
-use crate::input_builder::Input;
+use crate::util::{include::Include, input::Input, reasoning::Reasoning};
 use serde::{Deserialize, Serialize};
 
-// -- include field starts here --
-#[derive(Serialize, Deserialize)]
-enum Include {
-    #[serde(rename = "file_search_call.results")]
-    FileSearchCallResults,
-    #[serde(rename = "message.input_image.image_url")]
-    MessageInputImageUrl,
-    #[serde(rename = "computer_call_output.output.image_url")]
-    ComputerCallOutputImageUrl,
-}
-// -- include field ends here --
-
 // -- reasoning starts here --
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum Effort {
-    Low,
-    Medium,
-    High,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum Summary {
-    Auto,
-    Concise,
-    Detailed,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Reasoning {
-    effort: Option<Effort>,
-    summary: Option<Summary>,
-}
 // -- reasoning ends here --
 
 // -- service_tier field starts here --
@@ -63,12 +30,12 @@ struct TextFormat {
 }
 
 #[derive(Serialize, Deserialize)]
-struct JsonSchemaFormat {
+struct JsonSchemaFormat<'a> {
     #[serde(rename = "type")]
     type_field: ResponseFormatType, // always jsonschema
-    name: String,
+    name: &'a str,
     schema: serde_json::Value,
-    description: Option<String>,
+    description: Option<&'a str>,
     strict: Option<bool>,
 }
 
@@ -79,16 +46,18 @@ struct JsonObjectFormat {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-enum ResponseFormat {
+enum ResponseFormat<'a> {
     Text(TextFormat),
-    JsonSchema(JsonSchemaFormat),
+    JsonSchema(JsonSchemaFormat<'a>),
     JsonObject(JsonObjectFormat),
 }
 
 #[derive(Serialize, Deserialize)]
-struct Text {
-    format: Option<ResponseFormat>,
+#[serde(bound(deserialize = "'de: 'a"))]
+struct Text<'a> {
+    format: Option<ResponseFormat<'a>>,
 }
 // -- text field ends here --
 
@@ -116,18 +85,19 @@ struct HostedTool {
 }
 
 #[derive(Serialize, Deserialize)]
-struct FunctionToolChoice {
-    name: String,
+struct FunctionToolChoice<'a> {
+    name: &'a str,
     #[serde(rename = "type")]
-    type_field: String,
+    type_field: &'a str,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-enum ToolChoice {
+enum ToolChoice<'a> {
     Mode(ToolChoiceMode),
     HostedTool(HostedTool),
-    FunctionTool(FunctionToolChoice),
+    FunctionTool(FunctionToolChoice<'a>),
 }
 // -- tool_choice field ends here --
 
@@ -147,13 +117,13 @@ enum ComparisonOperator {
 #[serde(untagged)]
 enum FilterValue {
     String(String),
-    Number(f64),
     Boolean(bool),
+    Number(f64),
 }
 
 #[derive(Serialize, Deserialize)]
-struct ComparisonFilter {
-    key: String,
+struct ComparisonFilter<'a> {
+    key: &'a str,
     #[serde(rename = "type")]
     type_field: ComparisonOperator,
     value: FilterValue,
@@ -166,61 +136,64 @@ enum CompoundOperationType {
 }
 
 #[derive(Serialize, Deserialize)]
-struct CompoundFilter {
-    filters: Vec<FileSearchFilter>,
+#[serde(bound(deserialize = "'de: 'a"))]
+struct CompoundFilter<'a> {
+    filters: Vec<FileSearchFilter<'a>>,
     #[serde(rename = "type")]
     type_field: CompoundOperationType,
 }
 
 #[derive(Serialize, Deserialize)]
-enum FileSearchFilter {
-    Comparison(ComparisonFilter),
-    Compound(CompoundFilter),
+#[serde(bound(deserialize = "'de: 'a"))]
+enum FileSearchFilter<'a> {
+    Comparison(ComparisonFilter<'a>),
+    Compound(CompoundFilter<'a>),
 }
 
 #[derive(Serialize, Deserialize)]
-struct RankingOptions {
-    ranker: Option<String>,
+struct RankingOptions<'a> {
+    ranker: Option<&'a str>,
     score_threshold: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct FileSearchTool {
+#[serde(bound(deserialize = "'de: 'a"))]
+struct FileSearchTool<'a> {
     #[serde(rename = "type")]
-    type_field: String, // NOTE: this is always "file_search" value
-    vector_store_ids: Vec<String>,
-    filters: Option<FileSearchFilter>,
+    type_field: &'a str, // NOTE: this is always "file_search" value
+    vector_store_ids: Vec<&'a str>,
+    filters: Option<FileSearchFilter<'a>>,
     max_num_results: Option<u8>,
-    ranking_options: Option<RankingOptions>,
+    ranking_options: Option<RankingOptions<'a>>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct FunctionTool {
-    name: String,
+struct FunctionTool<'a> {
+    name: &'a str,
     parameters: serde_json::Value,
     strict: bool,
     #[serde(rename = "type")]
-    type_field: String, // NOTE: this is always "function" value
-    description: Option<String>,
+    type_field: &'a str, // NOTE: this is always "function" value
+    description: Option<&'a str>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct ComputerUseTool {
+struct ComputerUseTool<'a> {
     display_height: f32,
     display_width: f32,
-    environment: String,
+    environment: &'a str,
     #[serde(rename = "type")]
-    type_field: String, // NOTE: this is always "computer_use_preview" value
+    type_field: &'a str, // NOTE: this is always "computer_use_preview" value
 }
 
 #[derive(Serialize, Deserialize)]
-struct UserLocation {
+struct UserLocation<'a> {
     #[serde(rename = "type")]
-    type_field: String, // NOTE: this is always "approximate" value
-    city: Option<String>,
-    country: Option<String>, // NOTE: this is ISO-3166 country code
-    region: Option<String>,
-    timezone: Option<String>, // NOTE: this is IANA timezone
+    type_field: &'a str, // NOTE: this is always "approximate" value
+    city: Option<&'a str>,
+    country: Option<&'a str>, // NOTE: this is ISO-3166 country code
+    region: Option<&'a str>,
+    timezone: Option<&'a str>, // NOTE: this is IANA timezone
 }
 
 #[derive(Serialize, Deserialize)]
@@ -232,20 +205,21 @@ enum SearchContextSize {
 }
 
 #[derive(Serialize, Deserialize)]
-struct WebSearchTool {
+struct WebSearchTool<'a> {
     #[serde(rename = "type")]
-    type_field: String, // NOTE: this is either web_search_preview or web_search_preview_2025_03_11C
+    type_field: &'a str, // NOTE: this is either web_search_preview or web_search_preview_2025_03_11C
     search_context_size: Option<SearchContextSize>,
-    user_location: Option<UserLocation>,
+    user_location: Option<UserLocation<'a>>,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-enum Tool {
-    FileSearch(FileSearchTool),
-    Function(FunctionTool),
-    ComputerUse(ComputerUseTool),
-    WebSearch(WebSearchTool),
+enum Tool<'a> {
+    FileSearch(FileSearchTool<'a>),
+    Function(FunctionTool<'a>),
+    ComputerUse(ComputerUseTool<'a>),
+    WebSearch(WebSearchTool<'a>),
 }
 // -- tool ends here --
 
@@ -272,9 +246,9 @@ pub struct Entry<'a> {
     store: Option<bool>,
     stream: Option<bool>,
     temperature: Option<f32>,
-    text: Option<Text>,
-    tool_choice: Option<ToolChoice>,
-    tools: Option<Vec<Tool>>,
+    text: Option<Text<'a>>,
+    tool_choice: Option<ToolChoice<'a>>,
+    tools: Option<Vec<Tool<'a>>>,
     top_p: Option<f32>,
     truncation: Option<Truncation>,
     user: Option<&'a str>,
