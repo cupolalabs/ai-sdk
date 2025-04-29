@@ -50,11 +50,28 @@ pub struct HostedToolChoice {
     type_field: HostedToolType,
 }
 
+impl HostedToolChoice {
+    pub fn new(hosted_tool_type: &str) -> Self {
+        Self {
+            type_field: HostedToolType::from_str(hosted_tool_type).unwrap(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionToolChoice<'a> {
     name: &'a str,
     #[serde(rename = "type")]
     type_field: &'a str,
+}
+
+impl<'a> FunctionToolChoice<'a> {
+    pub fn new(name: &'a str) -> Self {
+        Self {
+            name,
+            type_field: "function",
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -66,24 +83,21 @@ pub enum ToolChoice<'a> {
     FunctionTool(FunctionToolChoice<'a>),
 }
 
-impl<'a> ToolChoice<'a> {
-    pub fn build_tool_choice_mode(mode: &'a str) -> Self {
-        let tool_choice_mode = ToolChoiceMode::from_str(mode).unwrap();
-
-        ToolChoice::Mode(tool_choice_mode)
+impl<'a> From<ToolChoiceMode> for ToolChoice<'a> {
+    fn from(tool: ToolChoiceMode) -> Self {
+        ToolChoice::Mode(tool)
     }
+}
 
-    pub fn build_hosted_tool(hosted_tool: &'a str) -> Self {
-        ToolChoice::HostedTool(HostedToolChoice {
-            type_field: HostedToolType::from_str(hosted_tool).unwrap(),
-        })
+impl<'a> From<HostedToolChoice> for ToolChoice<'a> {
+    fn from(tool: HostedToolChoice) -> Self {
+        ToolChoice::HostedTool(tool)
     }
+}
 
-    pub fn build_function_tool(name: &'a str) -> Self {
-        ToolChoice::FunctionTool(FunctionToolChoice {
-            name,
-            type_field: "function",
-        })
+impl<'a> From<FunctionToolChoice<'a>> for ToolChoice<'a> {
+    fn from(tool: FunctionToolChoice<'a>) -> Self {
+        ToolChoice::FunctionTool(tool)
     }
 }
 
@@ -93,15 +107,15 @@ mod tests {
 
     #[test]
     fn it_builds_choice_mode() {
-        let result = ToolChoice::build_tool_choice_mode("auto");
-        let expected = ToolChoice::Mode(ToolChoiceMode::from_str("auto").unwrap());
+        let result: ToolChoice = ToolChoiceMode::from_str("auto").unwrap().into();
+        let expected = ToolChoice::Mode(ToolChoiceMode::Auto);
 
         assert_eq!(result, expected);
     }
 
     #[test]
     fn it_builds_hosted_tool() {
-        let result = ToolChoice::build_hosted_tool("web_search_preview");
+        let result: ToolChoice = HostedToolChoice::new("web_search_preview").into();
         let expected = ToolChoice::HostedTool(HostedToolChoice {
             type_field: HostedToolType::from_str("web_search_preview").unwrap(),
         });
@@ -111,7 +125,7 @@ mod tests {
 
     #[test]
     fn it_builds_function_tool() {
-        let result = ToolChoice::build_function_tool("test name");
+        let result: ToolChoice = FunctionToolChoice::new("test name").into();
         let expected = ToolChoice::FunctionTool(FunctionToolChoice {
             name: "test name",
             type_field: "function",
@@ -138,7 +152,7 @@ mod tests {
         ];
 
         for (input, expected) in test_cases {
-            let result = ToolChoice::build_tool_choice_mode(input);
+            let result: ToolChoice = ToolChoiceMode::from_str(input).unwrap().into();
             assert_eq!(result, expected);
         }
     }
@@ -167,7 +181,7 @@ mod tests {
         ];
 
         for (input, expected) in test_cases {
-            let result = ToolChoice::build_hosted_tool(input);
+            let result: ToolChoice = HostedToolChoice::new(input).into();
             assert_eq!(result, expected);
         }
     }
