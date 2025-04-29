@@ -1,64 +1,9 @@
-use crate::util::{include::Include, input::Input, reasoning::Reasoning};
+use crate::util::{
+    include::Include, input::Input, reasoning::Reasoning, service_tier::ServiceTier, text::Text,
+};
 use serde::{Deserialize, Serialize};
 
-// -- reasoning starts here --
-// -- reasoning ends here --
-
-// -- service_tier field starts here --
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum ServiceTier {
-    Auto,
-    Default,
-    Flex,
-}
-// -- service_tier field ends here --
-
 // -- text field starts here --
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "lowercase")]
-enum ResponseFormatType {
-    Text,
-    JsonSchema,
-    JsonObject,
-}
-
-#[derive(Serialize, Deserialize)]
-struct TextFormat {
-    #[serde(rename = "type")]
-    type_field: ResponseFormatType, // always text
-}
-
-#[derive(Serialize, Deserialize)]
-struct JsonSchemaFormat<'a> {
-    #[serde(rename = "type")]
-    type_field: ResponseFormatType, // always jsonschema
-    name: &'a str,
-    schema: serde_json::Value,
-    description: Option<&'a str>,
-    strict: Option<bool>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct JsonObjectFormat {
-    #[serde(rename = "type")]
-    type_field: ResponseFormatType, // always jsonobject
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-#[serde(untagged)]
-enum ResponseFormat<'a> {
-    Text(TextFormat),
-    JsonSchema(JsonSchemaFormat<'a>),
-    JsonObject(JsonObjectFormat),
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-struct Text<'a> {
-    format: Option<ResponseFormat<'a>>,
-}
 // -- text field ends here --
 
 // -- tool_choice field starts here --
