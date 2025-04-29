@@ -1,50 +1,8 @@
 use crate::util::{
     include::Include, input::Input, reasoning::Reasoning, service_tier::ServiceTier, text::Text,
+    tool_choice::ToolChoice,
 };
 use serde::{Deserialize, Serialize};
-
-// -- text field starts here --
-// -- text field ends here --
-
-// -- tool_choice field starts here --
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "lowercase")]
-enum ToolChoiceMode {
-    None,
-    Auto,
-    Required,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "snake_case")]
-enum HostedToolType {
-    FileSearch,
-    WebSearchPreview,
-    ComputerUsePreview,
-}
-
-#[derive(Serialize, Deserialize)]
-struct HostedTool {
-    #[serde(rename = "type")]
-    type_field: HostedToolType,
-}
-
-#[derive(Serialize, Deserialize)]
-struct FunctionToolChoice<'a> {
-    name: &'a str,
-    #[serde(rename = "type")]
-    type_field: &'a str,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-#[serde(untagged)]
-enum ToolChoice<'a> {
-    Mode(ToolChoiceMode),
-    HostedTool(HostedTool),
-    FunctionTool(FunctionToolChoice<'a>),
-}
-// -- tool_choice field ends here --
 
 // -- tool starts here --
 #[derive(Serialize, Deserialize)]
