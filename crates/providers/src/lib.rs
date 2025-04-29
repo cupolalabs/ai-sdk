@@ -5,6 +5,7 @@ pub mod util {
     pub mod reasoning;
     pub mod service_tier;
     pub mod text;
+    pub mod tool;
     pub mod tool_choice;
 }
 pub mod provider;

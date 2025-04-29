@@ -1,0 +1,389 @@
+use std::str::FromStr;
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "lowercase")]
+pub enum ComparisonOperator {
+    Eq,
+    Ne,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+}
+
+impl FromStr for ComparisonOperator {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "eq" => Ok(ComparisonOperator::Eq),
+            "ne" => Ok(ComparisonOperator::Ne),
+            "gt" => Ok(ComparisonOperator::Gt),
+            "gte" => Ok(ComparisonOperator::Gte),
+            "lt" => Ok(ComparisonOperator::Lt),
+            "lte" => Ok(ComparisonOperator::Lte),
+            _ => Err(format!("Invalid comparison operator: {}", s)),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FilterValue {
+    String(String),
+    Boolean(bool),
+    Number(f64),
+}
+
+impl FilterValue {
+    pub fn string(filter: String) -> Self {
+        Self::String(filter)
+    }
+
+    pub fn boolean(filter: bool) -> Self {
+        Self::Boolean(filter)
+    }
+
+    pub fn number(filter: f64) -> Self {
+        Self::Number(filter)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ComparisonFilter<'a> {
+    key: &'a str,
+    #[serde(rename = "type")]
+    type_field: ComparisonOperator,
+    value: FilterValue,
+}
+
+impl From<String> for FilterValue {
+    fn from(value: String) -> Self {
+        FilterValue::String(value)
+    }
+}
+
+impl From<bool> for FilterValue {
+    fn from(value: bool) -> Self {
+        FilterValue::Boolean(value)
+    }
+}
+
+impl From<f64> for FilterValue {
+    fn from(value: f64) -> Self {
+        FilterValue::Number(value)
+    }
+}
+
+impl<'a> ComparisonFilter<'a> {
+    pub fn build<V: Into<FilterValue>>(
+        key: &'a str,
+        comparison_operator: &'a str,
+        value: V,
+    ) -> Self {
+        Self {
+            key,
+            type_field: ComparisonOperator::from_str(comparison_operator).unwrap(),
+            value: value.into(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum CompoundOperator {
+    And,
+    Or,
+}
+
+impl FromStr for CompoundOperator {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "and" => Ok(CompoundOperator::And),
+            "or" => Ok(CompoundOperator::Or),
+            _ => Err(format!("Invalid compound operator: {}", s)),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct CompoundFilter<'a> {
+    filters: Vec<FileSearchFilter<'a>>,
+    #[serde(rename = "type")]
+    type_field: CompoundOperator,
+}
+
+impl<'a> CompoundFilter<'a> {
+    pub fn build(filters: Vec<FileSearchFilter<'a>>, compound_operator: &'a str) -> Self {
+        Self {
+            filters,
+            type_field: CompoundOperator::from_str(compound_operator).unwrap(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub enum FileSearchFilter<'a> {
+    Comparison(ComparisonFilter<'a>),
+    Compound(CompoundFilter<'a>),
+}
+
+impl<'a> FileSearchFilter<'a> {
+    pub fn build_comparison_filter<V: Into<FilterValue>>(
+        key: &'a str,
+        comparison_operator: &'a str,
+        value: V,
+    ) -> Self {
+        Self::Comparison(ComparisonFilter::build(key, comparison_operator, value))
+    }
+
+    pub fn build_compound_filter(
+        filters: Vec<FileSearchFilter<'a>>,
+        compound_operator: &'a str,
+    ) -> Self {
+        Self::Compound(CompoundFilter::build(filters, compound_operator))
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RankingOptions<'a> {
+    ranker: Option<&'a str>,
+    score_threshold: Option<f32>,
+}
+
+impl<'a> RankingOptions<'a> {
+    pub fn new() -> Self {
+        Self {
+            ranker: None,
+            score_threshold: None,
+        }
+    }
+
+    pub fn ranker(mut self, value: &'a str) -> Self {
+        self.ranker = Some(value);
+        self
+    }
+
+    pub fn score_threshold(mut self, value: f32) -> Self {
+        self.score_threshold = Some(value);
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct FileSearchTool<'a> {
+    #[serde(rename = "type")]
+    type_field: &'a str, // NOTE: this is always "file_search" value
+    vector_store_ids: Vec<&'a str>,
+    filters: Option<FileSearchFilter<'a>>,
+    max_num_results: Option<u8>,
+    ranking_options: Option<RankingOptions<'a>>,
+}
+
+impl<'a> FileSearchTool<'a> {
+    pub fn new(vector_store_ids: Vec<&'a str>) -> Self {
+        Self {
+            type_field: "file_search",
+            vector_store_ids,
+            filters: None,
+            max_num_results: None,
+            ranking_options: None,
+        }
+    }
+
+    pub fn filters(mut self, filters: FileSearchFilter<'a>) -> Self {
+        self.filters = Some(filters);
+        self
+    }
+
+    pub fn max_num_results(mut self, value: u8) -> Self {
+        self.max_num_results = Some(value);
+        self
+    }
+
+    pub fn ranking_options(mut self, value: RankingOptions<'a>) -> Self {
+        self.ranking_options = Some(value);
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FunctionTool<'a> {
+    name: &'a str,
+    parameters: serde_json::Value,
+    strict: bool,
+    #[serde(rename = "type")]
+    type_field: &'a str, // NOTE: this is always "function" value
+    description: Option<&'a str>,
+}
+
+impl<'a> FunctionTool<'a> {
+    pub fn new(name: &'a str, parameters: serde_json::Value) -> Self {
+        Self {
+            name,
+            parameters,
+            strict: false,
+            type_field: "function",
+            description: None,
+        }
+    }
+
+    pub fn strict(mut self) -> Self {
+        self.strict = true;
+        self
+    }
+
+    pub fn description(mut self, value: &'a str) -> Self {
+        self.description = Some(value);
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ComputerUseTool<'a> {
+    display_height: f32,
+    display_width: f32,
+    environment: &'a str,
+    #[serde(rename = "type")]
+    type_field: &'a str, // NOTE: this is always "computer_use_preview" value
+}
+
+impl<'a> ComputerUseTool<'a> {
+    pub fn new(display_height: f32, display_width: f32, environment: &'a str) -> Self {
+        Self {
+            display_height,
+            display_width,
+            environment,
+            type_field: "computer_use_preview",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserLocation<'a> {
+    #[serde(rename = "type")]
+    type_field: &'a str, // NOTE: this is always "approximate" value
+    city: Option<&'a str>,
+    country: Option<&'a str>, // NOTE: this is ISO-3166 country code
+    region: Option<&'a str>,
+    timezone: Option<&'a str>, // NOTE: this is IANA timezone
+}
+
+impl<'a> UserLocation<'a> {
+    pub fn new() -> Self {
+        Self {
+            type_field: "approximate",
+            city: None,
+            country: None,
+            region: None,
+            timezone: None,
+        }
+    }
+
+    pub fn city(mut self, value: &'a str) -> Self {
+        self.city = Some(value);
+        self
+    }
+
+    pub fn country(mut self, value: &'a str) -> Self {
+        self.country = Some(value);
+        self
+    }
+
+    pub fn region(mut self, value: &'a str) -> Self {
+        self.region = Some(value);
+        self
+    }
+
+    pub fn timezone(mut self, value: &'a str) -> Self {
+        self.timezone = Some(value);
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "lowercase")]
+pub enum SearchContextSize {
+    Low,
+    Medium,
+    High,
+}
+
+impl FromStr for SearchContextSize {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "low" => Ok(SearchContextSize::Low),
+            "medium" => Ok(SearchContextSize::Medium),
+            "high" => Ok(SearchContextSize::High),
+            _ => Err(format!("Invalid search_context_size value: {}", s)),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WebSearchTool<'a> {
+    #[serde(rename = "type")]
+    type_field: &'a str, // NOTE: this is either web_search_preview or web_search_preview_2025_03_11C
+    search_context_size: Option<SearchContextSize>,
+    user_location: Option<UserLocation<'a>>,
+}
+
+impl<'a> WebSearchTool<'a> {
+    fn valid_types() -> &'static [&'static str] {
+        &["web_search_preview", "web_search_preview_2025_03_11C"]
+    }
+
+    pub fn new(tool_type: &'a str) -> Result<Self, String> {
+        if Self::valid_types().contains(&tool_type) {
+            Ok(Self {
+                type_field: tool_type,
+                search_context_size: None,
+                user_location: None,
+            })
+        } else {
+            Err(format!("Invalid web search tool type value: {}", tool_type))
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+#[serde(untagged)]
+pub enum Tool<'a> {
+    FileSearch(FileSearchTool<'a>),
+    Function(FunctionTool<'a>),
+    ComputerUse(ComputerUseTool<'a>),
+    WebSearch(WebSearchTool<'a>),
+}
+
+impl<'a> From<FileSearchTool<'a>> for Tool<'a> {
+    fn from(tool: FileSearchTool<'a>) -> Self {
+        Tool::FileSearch(tool)
+    }
+}
+
+impl<'a> From<FunctionTool<'a>> for Tool<'a> {
+    fn from(tool: FunctionTool<'a>) -> Self {
+        Tool::Function(tool)
+    }
+}
+
+impl<'a> From<ComputerUseTool<'a>> for Tool<'a> {
+    fn from(tool: ComputerUseTool<'a>) -> Self {
+        Tool::ComputerUse(tool)
+    }
+}
+
+impl<'a> From<WebSearchTool<'a>> for Tool<'a> {
+    fn from(tool: WebSearchTool<'a>) -> Self {
+        Tool::WebSearch(tool)
+    }
+}
