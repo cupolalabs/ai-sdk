@@ -1,17 +1,8 @@
 use crate::util::{
     include::Include, input::Input, reasoning::Reasoning, service_tier::ServiceTier, text::Text,
-    tool::Tool, tool_choice::ToolChoice,
+    tool::Tool, tool_choice::ToolChoice, truncation::Truncation,
 };
 use serde::{Deserialize, Serialize};
-
-// -- trancation field starts here --
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "losercase")]
-enum Truncation {
-    Auto,
-    Disabled,
-}
-// -- trancation field ends here --
 
 #[derive(Serialize, Deserialize)]
 pub struct Entry<'a> {
