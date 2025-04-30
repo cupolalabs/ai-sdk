@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename = "lowercase")]
 pub enum ComparisonOperator {
     Eq,
@@ -29,7 +29,7 @@ impl FromStr for ComparisonOperator {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FilterValue {
     String(String),
@@ -51,7 +51,7 @@ impl FilterValue {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ComparisonFilter<'a> {
     key: &'a str,
     #[serde(rename = "type")]
@@ -91,7 +91,7 @@ impl<'a> ComparisonFilter<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum CompoundOperator {
     And,
     Or,
@@ -109,7 +109,7 @@ impl FromStr for CompoundOperator {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct CompoundFilter<'a> {
     filters: Vec<FileSearchFilter<'a>>,
@@ -126,7 +126,7 @@ impl<'a> CompoundFilter<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub enum FileSearchFilter<'a> {
     Comparison(ComparisonFilter<'a>),
@@ -150,7 +150,7 @@ impl<'a> FileSearchFilter<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RankingOptions<'a> {
     ranker: Option<&'a str>,
     score_threshold: Option<f32>,
@@ -175,7 +175,7 @@ impl<'a> RankingOptions<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct FileSearchTool<'a> {
     #[serde(rename = "type")]
@@ -213,7 +213,7 @@ impl<'a> FileSearchTool<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionTool<'a> {
     name: &'a str,
     parameters: serde_json::Value,
@@ -245,7 +245,7 @@ impl<'a> FunctionTool<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ComputerUseTool<'a> {
     display_height: f32,
     display_width: f32,
@@ -265,7 +265,28 @@ impl<'a> ComputerUseTool<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename = "lowercase")]
+pub enum SearchContextSize {
+    Low,
+    Medium,
+    High,
+}
+
+impl FromStr for SearchContextSize {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "low" => Ok(SearchContextSize::Low),
+            "medium" => Ok(SearchContextSize::Medium),
+            "high" => Ok(SearchContextSize::High),
+            _ => Err(format!("Invalid search_context_size value: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserLocation<'a> {
     #[serde(rename = "type")]
     type_field: &'a str, // NOTE: this is always "approximate" value
@@ -307,28 +328,7 @@ impl<'a> UserLocation<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename = "lowercase")]
-pub enum SearchContextSize {
-    Low,
-    Medium,
-    High,
-}
-
-impl FromStr for SearchContextSize {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "low" => Ok(SearchContextSize::Low),
-            "medium" => Ok(SearchContextSize::Medium),
-            "high" => Ok(SearchContextSize::High),
-            _ => Err(format!("Invalid search_context_size value: {}", s)),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct WebSearchTool<'a> {
     #[serde(rename = "type")]
     type_field: &'a str, // NOTE: this is either web_search_preview or web_search_preview_2025_03_11C
@@ -352,9 +352,21 @@ impl<'a> WebSearchTool<'a> {
             Err(format!("Invalid web search tool type value: {}", tool_type))
         }
     }
+
+    pub fn search_context_size(mut self, value: &'a str) -> Self {
+        self.search_context_size = Some(SearchContextSize::from_str(value).unwrap());
+
+        self
+    }
+
+    pub fn user_location(mut self, value: UserLocation<'a>) -> Self {
+        self.user_location = Some(value);
+
+        self
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
 pub enum Tool<'a> {
@@ -370,9 +382,31 @@ impl<'a> From<FileSearchTool<'a>> for Tool<'a> {
     }
 }
 
+impl<'a> TryFrom<Tool<'a>> for FileSearchTool<'a> {
+    type Error = String;
+
+    fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::FileSearch(inner) => Ok(inner),
+            _ => Err("Unable to convert Tool into FileSearch".to_string()),
+        }
+    }
+}
+
 impl<'a> From<FunctionTool<'a>> for Tool<'a> {
     fn from(tool: FunctionTool<'a>) -> Self {
         Tool::Function(tool)
+    }
+}
+
+impl<'a> TryFrom<Tool<'a>> for FunctionTool<'a> {
+    type Error = String;
+
+    fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::Function(inner) => Ok(inner),
+            _ => Err("Unable to convert Tool into Function".to_string()),
+        }
     }
 }
 
@@ -382,8 +416,180 @@ impl<'a> From<ComputerUseTool<'a>> for Tool<'a> {
     }
 }
 
+impl<'a> TryFrom<Tool<'a>> for ComputerUseTool<'a> {
+    type Error = String;
+
+    fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::ComputerUse(inner) => Ok(inner),
+            _ => Err("Unable to convert Tool into ComputerUse".to_string()),
+        }
+    }
+}
+
 impl<'a> From<WebSearchTool<'a>> for Tool<'a> {
     fn from(tool: WebSearchTool<'a>) -> Self {
         Tool::WebSearch(tool)
+    }
+}
+
+impl<'a> TryFrom<Tool<'a>> for WebSearchTool<'a> {
+    type Error = String;
+
+    fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::WebSearch(inner) => Ok(inner),
+            _ => Err("Unable to convert Tool into WebSearchTool".to_string()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn it_creates_file_search_tool_with_comparison_operator() {
+        let vector_store_ids = vec!["id_1", "id_2", "id_3", "id_4"];
+        // NOTE: try_from here is to test the TryFrom trait that's implemented into Tool
+        let tool: Tool = FileSearchTool::new(vector_store_ids.clone()).into();
+        let tool: Tool = FileSearchTool::try_from(tool)
+            .unwrap()
+            .ranking_options(
+                RankingOptions::new()
+                    .ranker("test_ranker")
+                    .score_threshold(1.0),
+            )
+            .filters(FileSearchFilter::build_comparison_filter(
+                "test_key",
+                "eq",
+                "test_value".to_string(),
+            ))
+            .max_num_results(1)
+            .into();
+
+        let expected = Tool::FileSearch(FileSearchTool {
+            type_field: "file_search",
+            vector_store_ids,
+            ranking_options: Some(RankingOptions {
+                ranker: Some("test_ranker"),
+                score_threshold: Some(1.0),
+            }),
+            filters: Some(FileSearchFilter::Comparison(ComparisonFilter {
+                key: "test_key",
+                type_field: ComparisonOperator::Eq,
+                value: FilterValue::String("test_value".to_string()),
+            })),
+            max_num_results: Some(1),
+        });
+
+        assert_eq!(tool, expected);
+    }
+
+    #[test]
+    fn it_creates_file_search_tool_with_compound_operator() {
+        let vector_store_ids = vec!["id_1", "id_2", "id_3", "id_4"];
+        let tool: Tool = FileSearchTool::new(vector_store_ids.clone())
+            .filters(FileSearchFilter::build_compound_filter(
+                vec![FileSearchFilter::build_comparison_filter(
+                    "test_key",
+                    "eq",
+                    "test_value".to_string(),
+                )],
+                "and",
+            ))
+            .ranking_options(
+                RankingOptions::new()
+                    .ranker("test_ranker")
+                    .score_threshold(1.0),
+            )
+            .into();
+
+        let expected = Tool::FileSearch(FileSearchTool {
+            type_field: "file_search",
+            vector_store_ids,
+            ranking_options: Some(RankingOptions {
+                ranker: Some("test_ranker"),
+                score_threshold: Some(1.0),
+            }),
+            filters: Some(FileSearchFilter::Compound(CompoundFilter {
+                type_field: CompoundOperator::And,
+                filters: vec![FileSearchFilter::Comparison(ComparisonFilter {
+                    key: "test_key",
+                    type_field: ComparisonOperator::Eq,
+                    value: FilterValue::String("test_value".to_string()),
+                })],
+            })),
+            max_num_results: None,
+        });
+
+        assert_eq!(tool, expected);
+    }
+
+    #[test]
+    fn it_creates_function_tool() {
+        let tool: Tool = FunctionTool::new(
+            "function_tool_test",
+            json!({
+                "name": "test"
+            }),
+        )
+        .description("this is description")
+        .strict()
+        .into();
+
+        let expected = Tool::Function(FunctionTool {
+            description: Some("this is description"),
+            type_field: "function",
+            strict: true,
+            parameters: json!({"name": "test"}),
+            name: "function_tool_test",
+        });
+
+        assert_eq!(tool, expected);
+    }
+
+    #[test]
+    fn it_creates_computer_use_tool() {
+        let tool: Tool = ComputerUseTool::new(64.0, 64.0, "test_environment").into();
+
+        let expected = Tool::ComputerUse(ComputerUseTool {
+            type_field: "computer_use_preview",
+            environment: "test_environment",
+            display_width: 64.0,
+            display_height: 64.0,
+        });
+
+        assert_eq!(tool, expected);
+    }
+
+    #[test]
+    fn it_creates_web_search_tool() {
+        let tool: Tool = WebSearchTool::new("web_search_preview")
+            .unwrap()
+            .search_context_size("low")
+            .user_location(
+                UserLocation::new()
+                    .city("Istanbul")
+                    .country("TR")
+                    .region("Marmara")
+                    .timezone("Europe/Istanbul"),
+            )
+            .into();
+
+        let expected = Tool::WebSearch(WebSearchTool {
+            user_location: Some(UserLocation {
+                type_field: "approximate",
+                city: Some("Istanbul"),
+                country: Some("TR"),
+                region: Some("Marmara"),
+                timezone: Some("Europe/Istanbul"),
+            }),
+            search_context_size: Some(SearchContextSize::Low),
+            type_field: "web_search_preview",
+        });
+
+        assert_eq!(tool, expected);
     }
 }
