@@ -16,3 +16,6 @@ Cargo.lock
 
 # Node modules
 node_modules/
+
+# Coverage report
+tarpaulin-report.html
