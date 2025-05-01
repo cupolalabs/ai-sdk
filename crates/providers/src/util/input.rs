@@ -212,6 +212,19 @@ pub enum Input<'a> {
     MultiContent(MultiContentInput<'a>),
 }
 
+impl<'a> Input<'a> {
+    pub fn empty() -> Self {
+        Self::Text("")
+    }
+}
+
+// NOTE: this is for bypassing the Request's default value
+impl<'a> Default for Input<'a> {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl<'a> From<&'a str> for Input<'a> {
     fn from(value: &'a str) -> Self {
         Input::Text(value)

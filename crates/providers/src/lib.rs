@@ -9,4 +9,4 @@ pub mod util {
     pub mod tool_choice;
     pub mod truncation;
 }
-pub mod provider;
+pub mod request;
