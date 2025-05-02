@@ -208,8 +208,8 @@ impl<'a> MultiContentInput<'a> {
 #[serde(untagged)]
 pub enum Input<'a> {
     Text(&'a str),
-    SingleContent(SingleContentInput<'a>),
-    MultiContent(MultiContentInput<'a>),
+    SingleContent(Vec<SingleContentInput<'a>>),
+    MultiContent(Vec<MultiContentInput<'a>>),
 }
 
 impl<'a> Input<'a> {
@@ -243,13 +243,13 @@ impl<'a> TryFrom<Input<'a>> for &'a str {
 }
 
 // NOTE: we left here, check out the try_from implementations when you come back
-impl<'a> From<SingleContentInput<'a>> for Input<'a> {
-    fn from(value: SingleContentInput<'a>) -> Self {
+impl<'a> From<Vec<SingleContentInput<'a>>> for Input<'a> {
+    fn from(value: Vec<SingleContentInput<'a>>) -> Self {
         Self::SingleContent(value)
     }
 }
 
-impl<'a> TryFrom<Input<'a>> for SingleContentInput<'a> {
+impl<'a> TryFrom<Input<'a>> for Vec<SingleContentInput<'a>> {
     type Error = String;
 
     fn try_from(input: Input<'a>) -> Result<Self, Self::Error> {
@@ -260,13 +260,13 @@ impl<'a> TryFrom<Input<'a>> for SingleContentInput<'a> {
     }
 }
 
-impl<'a> From<MultiContentInput<'a>> for Input<'a> {
-    fn from(value: MultiContentInput<'a>) -> Self {
+impl<'a> From<Vec<MultiContentInput<'a>>> for Input<'a> {
+    fn from(value: Vec<MultiContentInput<'a>>) -> Self {
         Self::MultiContent(value)
     }
 }
 
-impl<'a> TryFrom<Input<'a>> for MultiContentInput<'a> {
+impl<'a> TryFrom<Input<'a>> for Vec<MultiContentInput<'a>> {
     type Error = String;
 
     fn try_from(input: Input<'a>) -> Result<Self, Self::Error> {
@@ -393,9 +393,9 @@ mod tests {
     fn it_builds_single_content_input_wrapper() {
         let content = "test content";
         let role = Role::System;
-        let expected = Input::SingleContent(SingleContentInput { content, role });
+        let expected = Input::SingleContent(vec![SingleContentInput { content, role }]);
 
-        let result: Input = SingleContentInput::new(content).role("system").into();
+        let result: Input = vec![SingleContentInput::new(content).role("system")].into();
         assert_eq!(result, expected);
     }
 
@@ -408,15 +408,15 @@ mod tests {
 
         let role = Role::Assistant;
 
-        let result: Input = MultiContentInput::new()
+        let result: Input = vec![MultiContentInput::new()
             .role("assistant")
-            .append_content(payload.clone())
-            .into();
+            .append_content(payload.clone())]
+        .into();
 
-        let expected = Input::MultiContent(MultiContentInput {
+        let expected = Input::MultiContent(vec![MultiContentInput {
             role,
             content: payload,
-        });
+        }]);
 
         assert_eq!(result, expected);
     }

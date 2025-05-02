@@ -44,7 +44,7 @@ impl FromStr for Summary {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Reasoning {
     pub effort: Option<Effort>,
     pub summary: Option<Summary>,

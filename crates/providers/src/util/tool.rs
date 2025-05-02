@@ -152,7 +152,9 @@ impl<'a> FileSearchFilter<'a> {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RankingOptions<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
     ranker: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     score_threshold: Option<f32>,
 }
 
@@ -181,8 +183,11 @@ pub struct FileSearchTool<'a> {
     #[serde(rename = "type")]
     type_field: &'a str, // NOTE: this is always "file_search" value
     vector_store_ids: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     filters: Option<FileSearchFilter<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_num_results: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ranking_options: Option<RankingOptions<'a>>,
 }
 
@@ -332,7 +337,9 @@ impl<'a> UserLocation<'a> {
 pub struct WebSearchTool<'a> {
     #[serde(rename = "type")]
     type_field: &'a str, // NOTE: this is either web_search_preview or web_search_preview_2025_03_11C
+    #[serde(skip_serializing_if = "Option::is_none")]
     search_context_size: Option<SearchContextSize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     user_location: Option<UserLocation<'a>>,
 }
 

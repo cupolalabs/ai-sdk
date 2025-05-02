@@ -9,13 +9,21 @@ enum ResponseFormatType {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct TextFormat {
+pub struct TextFormat {
     #[serde(rename = "type")]
     type_field: ResponseFormatType, // always text
 }
 
+impl TextFormat {
+    pub fn new() -> Self {
+        Self {
+            type_field: ResponseFormatType::Text,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct JsonSchemaFormat<'a> {
+pub struct JsonSchemaFormat<'a> {
     #[serde(rename = "type")]
     type_field: ResponseFormatType, // always jsonschema
     name: &'a str,
@@ -24,65 +32,132 @@ struct JsonSchemaFormat<'a> {
     strict: Option<bool>,
 }
 
+impl<'a> JsonSchemaFormat<'a> {
+    pub fn new(name: &'a str, schema: serde_json::Value) -> Self {
+        Self {
+            type_field: ResponseFormatType::JsonSchema,
+            name,
+            schema,
+            description: None,
+            strict: Some(false),
+        }
+    }
+
+    pub fn description(mut self, value: &'a str) -> Self {
+        self.description = Some(value);
+        self
+    }
+
+    pub fn strict(mut self) -> Self {
+        self.strict = Some(true);
+        self
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct JsonObjectFormat {
+pub struct JsonObjectFormat {
     #[serde(rename = "type")]
     type_field: ResponseFormatType, // always jsonobject
+}
+
+impl JsonObjectFormat {
+    pub fn new() -> Self {
+        Self {
+            type_field: ResponseFormatType::JsonObject,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-enum ResponseFormat<'a> {
+pub enum ResponseFormat<'a> {
     Text(TextFormat),
     JsonSchema(JsonSchemaFormat<'a>),
     JsonObject(JsonObjectFormat),
 }
 
-impl<'a> Default for ResponseFormat<'a> {
-    fn default() -> Self {
-        Self::Text(TextFormat {
-            type_field: ResponseFormatType::Text,
-        })
+impl<'a> From<TextFormat> for ResponseFormat<'a> {
+    fn from(text_format: TextFormat) -> Self {
+        Self::Text(text_format)
     }
 }
 
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+impl<'a> TryFrom<ResponseFormat<'a>> for TextFormat {
+    type Error = String;
+
+    fn try_from(response_format: ResponseFormat) -> Result<Self, Self::Error> {
+        match response_format {
+            ResponseFormat::Text(text_format) => Ok(text_format),
+            _ => Err("Invalid ResponseFormat value for TextFormat type".to_string()),
+        }
+    }
+}
+
+impl<'a> From<JsonSchemaFormat<'a>> for ResponseFormat<'a> {
+    fn from(json_schema_format: JsonSchemaFormat<'a>) -> Self {
+        Self::JsonSchema(json_schema_format)
+    }
+}
+
+impl<'a> TryFrom<ResponseFormat<'a>> for JsonSchemaFormat<'a> {
+    type Error = String;
+
+    fn try_from(response_format: ResponseFormat<'a>) -> Result<Self, Self::Error> {
+        match response_format {
+            ResponseFormat::JsonSchema(json_schema_format) => Ok(json_schema_format),
+            _ => Err("Invalid ResponseFormat value for JsonSchemaFormat type".to_string()),
+        }
+    }
+}
+
+impl<'a> From<JsonObjectFormat> for ResponseFormat<'a> {
+    fn from(json_object_format: JsonObjectFormat) -> Self {
+        Self::JsonObject(json_object_format)
+    }
+}
+
+impl<'a> TryFrom<ResponseFormat<'a>> for JsonObjectFormat {
+    type Error = String;
+
+    fn try_from(response_format: ResponseFormat<'a>) -> Result<Self, Self::Error> {
+        match response_format {
+            ResponseFormat::JsonObject(json_object_format) => Ok(json_object_format),
+            _ => Err("Invalid ResponseFormat value for JsonObjectFormat type".to_string()),
+        }
+    }
+}
+
+impl<'a> Default for ResponseFormat<'a> {
+    fn default() -> Self {
+        TextFormat::new().into()
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct Text<'a> {
     format: Option<ResponseFormat<'a>>,
 }
 
-impl<'a> Text<'a> {
-    pub fn build_text_response_format() -> Self {
+impl<'a> Default for Text<'a> {
+    fn default() -> Self {
         Self {
             format: Some(ResponseFormat::default()),
         }
     }
+}
 
-    pub fn build_json_schema_response_format(
-        name: &'a str,
-        schema: serde_json::Value,
-        description: Option<&'a str>,
-        strict: Option<bool>,
-    ) -> Self {
+impl<'a> Text<'a> {
+    pub fn new() -> Self {
         Self {
-            format: Some(ResponseFormat::JsonSchema(JsonSchemaFormat {
-                type_field: ResponseFormatType::JsonSchema,
-                name,
-                schema,
-                description,
-                strict,
-            })),
+            ..Default::default()
         }
     }
 
-    pub fn build_json_object_response_format() -> Self {
-        Self {
-            format: Some(ResponseFormat::JsonObject(JsonObjectFormat {
-                type_field: ResponseFormatType::JsonObject,
-            })),
-        }
+    pub fn response_format(mut self, value: ResponseFormat<'a>) -> Self {
+        self.format = Some(value);
+        self
     }
 }
 
@@ -93,7 +168,7 @@ mod tests {
 
     #[test]
     fn it_builds_text_response_format() {
-        let result = Text::build_text_response_format();
+        let result = Text::new().response_format(TextFormat::new().into());
 
         assert_eq!(
             result,
@@ -107,7 +182,7 @@ mod tests {
 
     #[test]
     fn it_builds_json_schema_response_format() {
-        let value = json!({
+        let schema = json!({
             "name": "Alice",
             "age": 30,
             "active": true,
@@ -118,18 +193,17 @@ mod tests {
             }
         });
 
-        let result = Text::build_json_schema_response_format(
-            "object",
-            value.clone(),
-            Some("this is a description"),
-            Some(false),
-        );
+        let response_format: ResponseFormat = JsonSchemaFormat::new("test", schema.clone())
+            .description("this is a description")
+            .into();
+
+        let result = Text::new().response_format(response_format);
 
         let expected = Text {
             format: Some(ResponseFormat::JsonSchema(JsonSchemaFormat {
                 type_field: ResponseFormatType::JsonSchema,
-                name: "object",
-                schema: value,
+                name: "test",
+                schema,
                 description: Some("this is a description"),
                 strict: Some(false),
             })),
@@ -140,7 +214,8 @@ mod tests {
 
     #[test]
     fn it_builds_json_object_response_format() {
-        let result = Text::build_json_object_response_format();
+        let response_format: ResponseFormat = JsonObjectFormat::new().into();
+        let result = Text::new().response_format(response_format);
 
         let expected = Text {
             format: Some(ResponseFormat::JsonObject(JsonObjectFormat {
