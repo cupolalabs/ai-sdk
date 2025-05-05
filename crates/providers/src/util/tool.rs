@@ -233,14 +233,14 @@ impl<'a> FunctionTool<'a> {
         Self {
             name,
             parameters,
-            strict: false,
+            strict: true,
             type_field: "function",
             description: None,
         }
     }
 
-    pub fn strict(mut self) -> Self {
-        self.strict = true;
+    pub fn strict(mut self, value: bool) -> Self {
+        self.strict = value;
         self
     }
 
@@ -543,7 +543,6 @@ mod tests {
             }),
         )
         .description("this is description")
-        .strict()
         .into();
 
         let expected = Tool::Function(FunctionTool {
