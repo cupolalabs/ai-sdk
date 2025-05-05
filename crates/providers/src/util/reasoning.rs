@@ -46,7 +46,9 @@ impl FromStr for Summary {
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Reasoning {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<Summary>,
 }
 
