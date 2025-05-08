@@ -47,4 +47,21 @@ mod tests {
             assert_eq!(Include::from_str(value).unwrap(), expected[index]);
         }
     }
+
+    #[test]
+    fn it_converts_include_into_json() {
+        for value in [
+            "file_search_call.results",
+            "message.input_image.image_url",
+            "computer_call_output.output.image_url",
+        ]
+        .iter()
+        {
+            let result = serde_json::to_value(Include::from_str(value).unwrap()).unwrap();
+
+            let expected = value.to_string();
+
+            assert_eq!(result, expected);
+        }
+    }
 }

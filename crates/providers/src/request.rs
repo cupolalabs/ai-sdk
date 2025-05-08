@@ -166,7 +166,7 @@ impl<'a> Request<'a> {
 mod tests {
     use super::*;
     use crate::util::{
-        input::{Content, ImageContent, MultiContentInput},
+        input::{Content, ImageContent, MultiContent},
         tool::{FileSearchTool, FunctionTool, WebSearchTool},
         tool_choice::ToolChoiceMode,
     };
@@ -174,17 +174,17 @@ mod tests {
     use std::str::FromStr;
 
     static MODEL: &str = "test-model";
-    static PLACEHOLDER_CONTENT: &str = "test-input";
+    static PLACEHOLDER_TEXT: &str = "test-input";
     static INSTRUCTIONS: &str = "You are a helpful assistant.";
 
     #[test]
     fn it_builds_request_with_text_input() {
-        let request = Request::new(MODEL, PLACEHOLDER_CONTENT.into());
+        let request = Request::new(MODEL, PLACEHOLDER_TEXT.into());
 
         let result = serde_json::to_value(&request).unwrap();
         let expected = json!({
             "model": MODEL,
-            "input": PLACEHOLDER_CONTENT
+            "input": PLACEHOLDER_TEXT
         });
 
         assert_eq!(result, expected);
@@ -192,10 +192,10 @@ mod tests {
 
     #[test]
     fn it_builds_request_with_image_input() {
-        let content: Content = ImageContent::build(PLACEHOLDER_CONTENT).into();
+        let content: Content = ImageContent::new().image_url(PLACEHOLDER_TEXT).into();
         let request = Request::new(
             MODEL,
-            vec![MultiContentInput::new().append_content(vec![content])].into(),
+            vec![MultiContent::new().append_content(vec![content]).into()].into(),
         );
 
         let result = serde_json::to_value(&request).unwrap();
@@ -205,7 +205,7 @@ mod tests {
                 "role": "user",
                 "content": [{
                     "type": "input_image",
-                    "image_url": PLACEHOLDER_CONTENT
+                    "image_url": PLACEHOLDER_TEXT
                 }]
             }]
         });
@@ -216,13 +216,13 @@ mod tests {
     #[test]
     fn it_builds_request_with_web_search() {
         let tool: Tool = WebSearchTool::new("web_search_preview").unwrap().into();
-        let request = Request::new(MODEL, PLACEHOLDER_CONTENT.into()).add_tool(tool);
+        let request = Request::new(MODEL, PLACEHOLDER_TEXT.into()).add_tool(tool);
 
         let result = serde_json::to_value(&request).unwrap();
         let expected = json!({
             "model": MODEL,
             "tools": [{ "type": "web_search_preview" }],
-            "input": PLACEHOLDER_CONTENT
+            "input": PLACEHOLDER_TEXT
         });
 
         assert_eq!(result, expected);
@@ -234,7 +234,7 @@ mod tests {
         let tool: Tool = FileSearchTool::new(vector_store_ids)
             .max_num_results(20)
             .into();
-        let request = Request::new(MODEL, PLACEHOLDER_CONTENT.into()).add_tool(tool);
+        let request = Request::new(MODEL, PLACEHOLDER_TEXT.into()).add_tool(tool);
 
         let result = serde_json::to_value(&request).unwrap();
         let expected = json!({
@@ -244,7 +244,7 @@ mod tests {
                 "vector_store_ids": ["vs_test123"],
                 "max_num_results": 20
             }],
-            "input": PLACEHOLDER_CONTENT
+            "input": PLACEHOLDER_TEXT
         });
 
         assert_eq!(result, expected);
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn it_builds_request_with_streaming() {
-        let request = Request::new(MODEL, PLACEHOLDER_CONTENT.into())
+        let request = Request::new(MODEL, PLACEHOLDER_TEXT.into())
             .instructions(INSTRUCTIONS)
             .stream();
 
@@ -260,7 +260,7 @@ mod tests {
         let expected = json!({
             "model": MODEL,
             "instructions": INSTRUCTIONS,
-            "input": PLACEHOLDER_CONTENT,
+            "input": PLACEHOLDER_TEXT,
             "stream": true
         });
 
@@ -285,7 +285,7 @@ mod tests {
               "required": ["location", "unit"]
         });
         let description = "Get the current weather in a given location";
-        let request = Request::new(MODEL, PLACEHOLDER_CONTENT.into())
+        let request = Request::new(MODEL, PLACEHOLDER_TEXT.into())
             .add_tool(
                 FunctionTool::new(function_name, parameters.clone())
                     .description(description)
@@ -296,7 +296,7 @@ mod tests {
         let result = serde_json::to_value(&request).unwrap();
         let expected = json!({
                 "model": MODEL,
-                "input": PLACEHOLDER_CONTENT,
+                "input": PLACEHOLDER_TEXT,
         "tools": [
           {
             "type": "function",
@@ -314,13 +314,13 @@ mod tests {
 
     #[test]
     fn it_builds_request_with_reasoning() {
-        let request = Request::new(MODEL, PLACEHOLDER_CONTENT.into())
-            .reasoning(Reasoning::new().effort("high"));
+        let request =
+            Request::new(MODEL, PLACEHOLDER_TEXT.into()).reasoning(Reasoning::new().effort("high"));
         let result = serde_json::to_value(request).unwrap();
 
         let expected = json!({
             "model": MODEL,
-            "input": PLACEHOLDER_CONTENT,
+            "input": PLACEHOLDER_TEXT,
             "reasoning": {
                 "effort": "high"
             }

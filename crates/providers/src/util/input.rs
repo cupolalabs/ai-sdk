@@ -55,10 +55,32 @@ pub struct TextContent<'a> {
 }
 
 impl<'a> TextContent<'a> {
-    pub fn build(text: &'a str) -> Self {
+    pub fn new(text: &'a str) -> Self {
         Self {
             type_field: ContentType::InputText,
             text,
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageDetail {
+    High,
+    Low,
+    #[default]
+    Auto,
+}
+
+impl FromStr for ImageDetail {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "high" => Ok(ImageDetail::High),
+            "low" => Ok(ImageDetail::Low),
+            "auto" => Ok(ImageDetail::Auto),
+            _ => Err(format!("Invalid string slice: {}", s)),
         }
     }
 }
@@ -67,49 +89,83 @@ impl<'a> TextContent<'a> {
 pub struct ImageContent<'a> {
     #[serde(rename = "type")]
     pub type_field: ContentType, // always InputImage
-    pub image_url: &'a str,
+    pub image_url: Option<&'a str>,
+    pub file_id: Option<&'a str>,
+    pub detail: ImageDetail,
+}
+
+impl<'a> Default for ImageContent<'a> {
+    fn default() -> Self {
+        Self {
+            type_field: ContentType::InputImage,
+            image_url: None,
+            file_id: None,
+            detail: ImageDetail::Auto,
+        }
+    }
 }
 
 impl<'a> ImageContent<'a> {
-    pub fn build(image_url: &'a str) -> Self {
-        Self {
-            type_field: ContentType::InputImage,
-            image_url,
-        }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn image_url(mut self, value: &'a str) -> Self {
+        self.image_url = Some(value);
+        self
+    }
+
+    pub fn file_id(mut self, value: &'a str) -> Self {
+        self.file_id = Some(value);
+        self
+    }
+
+    pub fn detail(mut self, value: &'a str) -> Self {
+        self.detail = ImageDetail::from_str(value).unwrap();
+        self
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct FileWithIdContent<'a> {
+pub struct FileContent<'a> {
     #[serde(rename = "type")]
     pub type_field: ContentType, // always InputFile,
-    pub file_id: &'a str,
+    pub file_id: Option<&'a str>,
+    pub file_data: Option<&'a str>,
+    pub filename: Option<&'a str>,
 }
 
-impl<'a> FileWithIdContent<'a> {
-    pub fn build(file_id: &'a str) -> Self {
+impl<'a> Default for FileContent<'a> {
+    fn default() -> Self {
         Self {
             type_field: ContentType::InputFile,
-            file_id,
+            file_id: None,
+            file_data: None,
+            filename: None,
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct FileWithBase64Content<'a> {
-    #[serde(rename = "type")]
-    pub type_field: ContentType, // always InputFile
-    pub filename: &'a str,
-    pub file_data: &'a str, // base64 goes here
-}
-
-impl<'a> FileWithBase64Content<'a> {
-    pub fn build(filename: &'a str, file_data: &'a str) -> Self {
+impl<'a> FileContent<'a> {
+    pub fn new() -> Self {
         Self {
-            type_field: ContentType::InputFile,
-            filename,
-            file_data,
+            ..Default::default()
         }
+    }
+
+    pub fn file_id(mut self, value: &'a str) -> Self {
+        self.file_id = Some(value);
+        self
+    }
+
+    pub fn file_data(mut self, value: &'a str) -> Self {
+        self.file_data = Some(value);
+        self
+    }
+
+    pub fn filename(mut self, value: &'a str) -> Self {
+        self.filename = Some(value);
+        self
     }
 }
 
@@ -119,8 +175,7 @@ impl<'a> FileWithBase64Content<'a> {
 pub enum Content<'a> {
     Text(TextContent<'a>),
     Image(ImageContent<'a>),
-    FileWithId(FileWithIdContent<'a>),
-    FileWithBase64(FileWithBase64Content<'a>),
+    File(FileContent<'a>),
 }
 
 impl<'a> From<TextContent<'a>> for Content<'a> {
@@ -135,30 +190,28 @@ impl<'a> From<ImageContent<'a>> for Content<'a> {
     }
 }
 
-impl<'a> From<FileWithIdContent<'a>> for Content<'a> {
-    fn from(file_with_id_content: FileWithIdContent<'a>) -> Self {
-        Self::FileWithId(file_with_id_content)
-    }
-}
-
-impl<'a> From<FileWithBase64Content<'a>> for Content<'a> {
-    fn from(file_with_base64_content: FileWithBase64Content<'a>) -> Self {
-        Self::FileWithBase64(file_with_base64_content)
+impl<'a> From<FileContent<'a>> for Content<'a> {
+    fn from(file_content: FileContent<'a>) -> Self {
+        Self::File(file_content)
     }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
-pub struct SingleContentInput<'a> {
+pub struct SingleContent<'a> {
     pub role: Role,
     pub content: &'a str,
+    #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_field: Option<&'a str>,
 }
 
-impl<'a> SingleContentInput<'a> {
+impl<'a> SingleContent<'a> {
     pub fn new(content: &'a str) -> Self {
         Self {
             role: Role::default(),
             content,
+            type_field: None,
         }
     }
 
@@ -166,25 +219,34 @@ impl<'a> SingleContentInput<'a> {
         self.role = Role::from_str(role).unwrap();
         self
     }
+
+    pub fn insert_type(mut self) -> Self {
+        self.type_field = Some("message");
+        self
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
-pub struct MultiContentInput<'a> {
+pub struct MultiContent<'a> {
     pub role: Role,
     pub content: Vec<Content<'a>>,
+    #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_field: Option<&'a str>,
 }
 
-impl<'a> Default for MultiContentInput<'a> {
+impl<'a> Default for MultiContent<'a> {
     fn default() -> Self {
         Self {
             role: Role::default(),
             content: vec![],
+            type_field: None,
         }
     }
 }
 
-impl<'a> MultiContentInput<'a> {
+impl<'a> MultiContent<'a> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -202,14 +264,26 @@ impl<'a> MultiContentInput<'a> {
         }
         self
     }
+
+    pub fn insert_type(mut self) -> Self {
+        self.type_field = Some("message");
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Input<'a> {
     Text(&'a str),
-    SingleContent(Vec<SingleContentInput<'a>>),
-    MultiContent(Vec<MultiContentInput<'a>>),
+    Object(Vec<ObjectInput<'a>>),
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+#[serde(untagged)]
+pub enum ObjectInput<'a> {
+    Single(SingleContent<'a>),
+    Multi(MultiContent<'a>),
 }
 
 impl<'a> Input<'a> {
@@ -242,37 +316,53 @@ impl<'a> TryFrom<Input<'a>> for &'a str {
     }
 }
 
-// NOTE: we left here, check out the try_from implementations when you come back
-impl<'a> From<Vec<SingleContentInput<'a>>> for Input<'a> {
-    fn from(value: Vec<SingleContentInput<'a>>) -> Self {
-        Self::SingleContent(value)
+impl<'a> From<Vec<ObjectInput<'a>>> for Input<'a> {
+    fn from(value: Vec<ObjectInput<'a>>) -> Self {
+        Self::Object(value)
     }
 }
 
-impl<'a> TryFrom<Input<'a>> for Vec<SingleContentInput<'a>> {
+impl<'a> TryFrom<Input<'a>> for Vec<ObjectInput<'a>> {
     type Error = String;
 
     fn try_from(input: Input<'a>) -> Result<Self, Self::Error> {
         match input {
-            Input::SingleContent(inner) => Ok(inner),
-            _ => Err("Unable to convert Input into SingleContentInput slice".to_string()),
+            Input::Object(inner) => Ok(inner),
+            _ => Err("Unable to convert Input into Vec<ObjectInput<'a>>".to_string()),
         }
     }
 }
 
-impl<'a> From<Vec<MultiContentInput<'a>>> for Input<'a> {
-    fn from(value: Vec<MultiContentInput<'a>>) -> Self {
-        Self::MultiContent(value)
+impl<'a> From<SingleContent<'a>> for ObjectInput<'a> {
+    fn from(value: SingleContent<'a>) -> Self {
+        ObjectInput::Single(value)
     }
 }
 
-impl<'a> TryFrom<Input<'a>> for Vec<MultiContentInput<'a>> {
+impl<'a> TryFrom<ObjectInput<'a>> for SingleContent<'a> {
     type Error = String;
 
-    fn try_from(input: Input<'a>) -> Result<Self, Self::Error> {
-        match input {
-            Input::MultiContent(inner) => Ok(inner),
-            _ => Err("Unable to convert Input into MultiContentInput slice".to_string()),
+    fn try_from(object_input: ObjectInput<'a>) -> Result<Self, Self::Error> {
+        match object_input {
+            ObjectInput::Single(inner) => Ok(inner),
+            _ => Err("Unable to convert ObjectInput into SingleContent".to_string()),
+        }
+    }
+}
+
+impl<'a> From<MultiContent<'a>> for ObjectInput<'a> {
+    fn from(value: MultiContent<'a>) -> Self {
+        ObjectInput::Multi(value)
+    }
+}
+
+impl<'a> TryFrom<ObjectInput<'a>> for MultiContent<'a> {
+    type Error = String;
+
+    fn try_from(object_input: ObjectInput<'a>) -> Result<Self, Self::Error> {
+        match object_input {
+            ObjectInput::Multi(inner) => Ok(inner),
+            _ => Err("Unable to convert ObjectInput into MultiContent".to_string()),
         }
     }
 }
@@ -280,6 +370,8 @@ impl<'a> TryFrom<Input<'a>> for Vec<MultiContentInput<'a>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use serde_json::json;
 
     #[test]
     fn it_converts_a_string_slice_to_a_role() {
@@ -333,11 +425,12 @@ mod tests {
     #[test]
     fn it_builds_single_content_input() {
         let content = "test content";
-        let result = SingleContentInput::new(content).role("assistant");
+        let result = SingleContent::new(content).role("assistant");
 
-        let expected = SingleContentInput {
+        let expected = SingleContent {
             role: Role::Assistant,
             content,
+            type_field: None,
         };
 
         assert_eq!(result, expected);
@@ -346,17 +439,21 @@ mod tests {
     #[test]
     fn it_builds_multi_content_input() {
         let payload = vec![
-            TextContent::build("test content").into(),
-            ImageContent::build("http://image.url").into(),
-            FileWithIdContent::build("file_id").into(),
-            FileWithBase64Content::build("filename", "file_data").into(),
+            TextContent::new("test content").into(),
+            ImageContent::new().image_url("http://image.url").into(),
+            FileContent::new().file_id("file_id").into(),
+            FileContent::new()
+                .filename("filename")
+                .file_data("file_data")
+                .into(),
         ];
 
-        let expected = MultiContentInput {
+        let expected = MultiContent {
             role: Role::User,
             content: payload.clone(),
+            type_field: None,
         };
-        let result = MultiContentInput::new().append_content(payload);
+        let result = MultiContent::new().append_content(payload);
 
         assert_eq!(result, expected);
     }
@@ -364,14 +461,17 @@ mod tests {
     #[test]
     fn it_appends_content_to_multi_content_input() {
         let payload = vec![
-            TextContent::build("test content").into(),
-            ImageContent::build("http://image.url").into(),
-            FileWithIdContent::build("file_id").into(),
+            TextContent::new("test content").into(),
+            ImageContent::new().image_url("http://image.url").into(),
+            FileContent::new().file_id("file_id").into(),
         ];
 
-        let multi_content_input = MultiContentInput::new().append_content(payload);
+        let multi_content_input = MultiContent::new().append_content(payload);
 
-        let content_to_add: Content = FileWithBase64Content::build("filename", "file_data").into();
+        let content_to_add: Content = FileContent::new()
+            .filename("filename")
+            .file_data("file_data")
+            .into();
 
         let multi_content_input = multi_content_input.append_content(vec![content_to_add.clone()]);
 
@@ -391,60 +491,113 @@ mod tests {
 
     #[test]
     fn it_builds_single_content_input_wrapper() {
-        let content = "test content";
         let role = Role::System;
-        let expected = Input::SingleContent(vec![SingleContentInput { content, role }]);
+        let content = "test content";
+        let result = Input::Object(vec![SingleContent {
+            role,
+            content,
+            type_field: None,
+        }
+        .into()]);
+        let expected: Input = Input::Object(vec![ObjectInput::Single(SingleContent {
+            role,
+            content,
+            type_field: None,
+        })]);
 
-        let result: Input = vec![SingleContentInput::new(content).role("system")].into();
         assert_eq!(result, expected);
     }
 
     #[test]
     fn it_builds_multi_content_input_wrapper() {
         let payload = vec![
-            TextContent::build("test content").into(),
-            ImageContent::build("http://image.url").into(),
+            TextContent::new("test content").into(),
+            ImageContent::new().image_url("http://image.url").into(),
         ];
 
         let role = Role::Assistant;
 
-        let result: Input = vec![MultiContentInput::new()
+        let result: Input = vec![MultiContent::new()
             .role("assistant")
-            .append_content(payload.clone())]
+            .append_content(payload.clone())
+            .into()]
         .into();
 
-        let expected = Input::MultiContent(vec![MultiContentInput {
-            role,
+        let expected = Input::Object(vec![ObjectInput::Multi(MultiContent {
             content: payload,
-        }]);
+            role,
+            type_field: None,
+        })]);
 
         assert_eq!(result, expected);
     }
 
     #[test]
     fn it_appends_content_to_multi_content_input_wrapper() {
-        let payload = vec![TextContent::build("test_content").into()];
+        let payload = vec![TextContent::new("test_content").into()];
         let role = Role::System;
 
-        let input = MultiContentInput::new()
+        let input = MultiContent::new()
             .append_content(payload.clone())
             .role("system");
 
-        let content_to_add = vec![ImageContent::build("http://image.url").into()];
+        let content_to_add = vec![ImageContent::new().image_url("http://image.url").into()];
         let input = input.append_content(content_to_add.clone());
 
-        let multi_content_input: MultiContentInput = input.clone().try_into().unwrap();
+        let multi_content_input: MultiContent = input.clone().try_into().unwrap();
 
         assert_eq!(multi_content_input.content.len(), 2);
         assert_eq!(multi_content_input.content[1], content_to_add[0]);
 
         let mut combined = payload.clone();
         combined.extend(content_to_add.clone());
-        let expected_input = MultiContentInput {
+        let expected_input = MultiContent {
             role,
             content: combined,
+            type_field: None,
         };
 
         assert_eq!(input, expected_input);
+    }
+
+    #[test]
+    fn it_converts_input_to_json() {
+        let image_url = "https://image.url";
+        let filename = "test_filename";
+        let base64_data = "bGlnaHQgd29yaw==";
+        let input: Input = vec![
+            SingleContent::new("test content").into(),
+            MultiContent::new()
+                .append_content(vec![
+                    ImageContent::new().image_url(image_url).into(),
+                    FileContent::new()
+                        .filename(filename)
+                        .file_data(base64_data)
+                        .into(),
+                ])
+                .into(),
+        ]
+        .into();
+
+        let result = serde_json::to_value(input).unwrap();
+
+        let expected = json!([{
+            "role": "user",
+            "content": "test content"
+        }, {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_image",
+                    "image_url": image_url
+                },
+                {
+                    "type": "input_file",
+                    "filename": filename,
+                }
+            ]
+        }]);
+
+        assert_eq!(result, expected);
     }
 }
