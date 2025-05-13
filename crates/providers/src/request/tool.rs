@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::{ConversionError, InputError};
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename = "lowercase")]
 pub enum ComparisonOperator {
@@ -14,7 +16,7 @@ pub enum ComparisonOperator {
 }
 
 impl FromStr for ComparisonOperator {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -24,7 +26,7 @@ impl FromStr for ComparisonOperator {
             "gte" => Ok(ComparisonOperator::Gte),
             "lt" => Ok(ComparisonOperator::Lt),
             "lte" => Ok(ComparisonOperator::Lte),
-            _ => Err(format!("Invalid comparison operator: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -98,13 +100,13 @@ pub enum CompoundOperator {
 }
 
 impl FromStr for CompoundOperator {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "and" => Ok(CompoundOperator::And),
             "or" => Ok(CompoundOperator::Or),
-            _ => Err(format!("Invalid compound operator: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -174,6 +176,12 @@ impl<'a> RankingOptions<'a> {
     pub fn score_threshold(mut self, value: f32) -> Self {
         self.score_threshold = Some(value);
         self
+    }
+}
+
+impl Default for RankingOptions<'_> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -279,14 +287,14 @@ pub enum SearchContextSize {
 }
 
 impl FromStr for SearchContextSize {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "low" => Ok(SearchContextSize::Low),
             "medium" => Ok(SearchContextSize::Medium),
             "high" => Ok(SearchContextSize::High),
-            _ => Err(format!("Invalid search_context_size value: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -333,6 +341,12 @@ impl<'a> UserLocation<'a> {
     }
 }
 
+impl Default for UserLocation<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct WebSearchTool<'a> {
     #[serde(rename = "type")]
@@ -348,7 +362,7 @@ impl<'a> WebSearchTool<'a> {
         &["web_search_preview", "web_search_preview_2025_03_11C"]
     }
 
-    pub fn new(tool_type: &'a str) -> Result<Self, String> {
+    pub fn new(tool_type: &'a str) -> Result<Self, InputError> {
         if Self::valid_types().contains(&tool_type) {
             Ok(Self {
                 type_field: tool_type,
@@ -356,7 +370,7 @@ impl<'a> WebSearchTool<'a> {
                 user_location: None,
             })
         } else {
-            Err(format!("Invalid web search tool type value: {}", tool_type))
+            Err(InputError::InvalidToolType(tool_type.to_string()))
         }
     }
 
@@ -390,12 +404,12 @@ impl<'a> From<FileSearchTool<'a>> for Tool<'a> {
 }
 
 impl<'a> TryFrom<Tool<'a>> for FileSearchTool<'a> {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
         match tool {
             Tool::FileSearch(inner) => Ok(inner),
-            _ => Err("Unable to convert Tool into FileSearch".to_string()),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
         }
     }
 }
@@ -407,12 +421,12 @@ impl<'a> From<FunctionTool<'a>> for Tool<'a> {
 }
 
 impl<'a> TryFrom<Tool<'a>> for FunctionTool<'a> {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
         match tool {
             Tool::Function(inner) => Ok(inner),
-            _ => Err("Unable to convert Tool into Function".to_string()),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
         }
     }
 }
@@ -424,12 +438,12 @@ impl<'a> From<ComputerUseTool<'a>> for Tool<'a> {
 }
 
 impl<'a> TryFrom<Tool<'a>> for ComputerUseTool<'a> {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
         match tool {
             Tool::ComputerUse(inner) => Ok(inner),
-            _ => Err("Unable to convert Tool into ComputerUse".to_string()),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
         }
     }
 }
@@ -441,12 +455,12 @@ impl<'a> From<WebSearchTool<'a>> for Tool<'a> {
 }
 
 impl<'a> TryFrom<Tool<'a>> for WebSearchTool<'a> {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(tool: Tool<'a>) -> Result<Self, Self::Error> {
         match tool {
             Tool::WebSearch(inner) => Ok(inner),
-            _ => Err("Unable to convert Tool into WebSearchTool".to_string()),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
         }
     }
 }

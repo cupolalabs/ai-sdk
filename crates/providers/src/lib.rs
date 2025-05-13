@@ -1,5 +1,5 @@
 pub mod errors;
-pub mod util {
+pub mod request {
     pub mod include;
     pub mod input;
     pub mod reasoning;
@@ -9,4 +9,6 @@ pub mod util {
     pub mod tool_choice;
     pub mod truncation;
 }
-pub mod request;
+
+pub use errors::*;
+pub use request::*;

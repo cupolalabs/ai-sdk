@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ConversionError;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename = "lowercase")]
 enum ResponseFormatType {
@@ -19,6 +21,12 @@ impl TextFormat {
         Self {
             type_field: ResponseFormatType::Text,
         }
+    }
+}
+
+impl Default for TextFormat {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -68,6 +76,12 @@ impl JsonObjectFormat {
     }
 }
 
+impl Default for JsonObjectFormat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
@@ -77,19 +91,19 @@ pub enum ResponseFormat<'a> {
     JsonObject(JsonObjectFormat),
 }
 
-impl<'a> From<TextFormat> for ResponseFormat<'a> {
+impl From<TextFormat> for ResponseFormat<'_> {
     fn from(text_format: TextFormat) -> Self {
         Self::Text(text_format)
     }
 }
 
 impl<'a> TryFrom<ResponseFormat<'a>> for TextFormat {
-    type Error = String;
+    type Error = ConversionError;
 
-    fn try_from(response_format: ResponseFormat) -> Result<Self, Self::Error> {
+    fn try_from(response_format: ResponseFormat<'a>) -> Result<Self, Self::Error> {
         match response_format {
             ResponseFormat::Text(text_format) => Ok(text_format),
-            _ => Err("Invalid ResponseFormat value for TextFormat type".to_string()),
+            _ => Err(ConversionError::TryFrom("ResponseFormat".to_string())),
         }
     }
 }
@@ -101,34 +115,34 @@ impl<'a> From<JsonSchemaFormat<'a>> for ResponseFormat<'a> {
 }
 
 impl<'a> TryFrom<ResponseFormat<'a>> for JsonSchemaFormat<'a> {
-    type Error = String;
+    type Error = ConversionError;
 
     fn try_from(response_format: ResponseFormat<'a>) -> Result<Self, Self::Error> {
         match response_format {
             ResponseFormat::JsonSchema(json_schema_format) => Ok(json_schema_format),
-            _ => Err("Invalid ResponseFormat value for JsonSchemaFormat type".to_string()),
+            _ => Err(ConversionError::TryFrom("ResponseFormat".to_string())),
         }
     }
 }
 
-impl<'a> From<JsonObjectFormat> for ResponseFormat<'a> {
+impl From<JsonObjectFormat> for ResponseFormat<'_> {
     fn from(json_object_format: JsonObjectFormat) -> Self {
         Self::JsonObject(json_object_format)
     }
 }
 
-impl<'a> TryFrom<ResponseFormat<'a>> for JsonObjectFormat {
-    type Error = String;
+impl TryFrom<ResponseFormat<'_>> for JsonObjectFormat {
+    type Error = ConversionError;
 
-    fn try_from(response_format: ResponseFormat<'a>) -> Result<Self, Self::Error> {
+    fn try_from(response_format: ResponseFormat<'_>) -> Result<Self, Self::Error> {
         match response_format {
             ResponseFormat::JsonObject(json_object_format) => Ok(json_object_format),
-            _ => Err("Invalid ResponseFormat value for JsonObjectFormat type".to_string()),
+            _ => Err(ConversionError::TryFrom("ResponseFormat".to_string())),
         }
     }
 }
 
-impl<'a> Default for ResponseFormat<'a> {
+impl Default for ResponseFormat<'_> {
     fn default() -> Self {
         TextFormat::new().into()
     }
@@ -140,7 +154,7 @@ pub struct Text<'a> {
     format: Option<ResponseFormat<'a>>,
 }
 
-impl<'a> Default for Text<'a> {
+impl Default for Text<'_> {
     fn default() -> Self {
         Self {
             format: Some(ResponseFormat::default()),

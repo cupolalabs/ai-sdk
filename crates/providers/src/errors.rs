@@ -1,18 +1,55 @@
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
 #[derive(Debug, PartialEq)]
-pub enum ContentError {
-    InvalidRole(String),
-    InvalidContentType(String),
-    UnableToAppend,
+pub enum ConversionError {
+    FromStr(String),
+    TryFrom(String),
 }
 
-impl Display for ContentError {
+impl Display for ConversionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ContentError::InvalidRole(msg) => write!(f, "Invalid role: {}", msg),
-            ContentError::InvalidContentType(msg) => write!(f, "Invalid content type: {}", msg),
-            ContentError::UnableToAppend => write!(f, "Unable to append content to the input"),
+            ConversionError::FromStr(msg) => write!(f, "Failed to convert from string: {}", msg),
+            ConversionError::TryFrom(msg) => {
+                write!(f, "Failed to convert from {} to target type", msg)
+            }
         }
+    }
+}
+
+impl Error for ConversionError {}
+
+#[derive(Debug, PartialEq)]
+pub enum InputError {
+    InvalidToolType(String),
+    InvalidRole(String),
+    InvalidButton(String),
+    ConversionError(ConversionError),
+}
+
+impl Display for InputError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InputError::InvalidToolType(msg) => write!(f, "Invalid tool type: {}", msg),
+            InputError::InvalidRole(msg) => {
+                write!(
+                    f,
+                    "The role {} is not compatible with InputMessageItem",
+                    msg
+                )
+            }
+            InputError::InvalidButton(msg) => {
+                write!(f, "Invalid button value: {}", msg)
+            }
+            InputError::ConversionError(err) => write!(f, "Conversion error: {}", err),
+        }
+    }
+}
+
+impl Error for InputError {}
+
+impl From<ConversionError> for InputError {
+    fn from(error: ConversionError) -> Self {
+        InputError::ConversionError(error)
     }
 }

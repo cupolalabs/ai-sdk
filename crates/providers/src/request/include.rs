@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ConversionError;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Include {
     #[serde(rename = "file_search_call.results")]
@@ -13,14 +15,14 @@ pub enum Include {
 }
 
 impl FromStr for Include {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "file_search_call.results" => Ok(Include::FileSearchCallResults),
             "message.input_image.image_url" => Ok(Include::MessageInputImageUrl),
             "computer_call_output.output.image_url" => Ok(Include::ComputerCallOutputImageUrl),
-            _ => Err(format!("Invalid include value: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }

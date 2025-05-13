@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ConversionError;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ServiceTier {
@@ -11,14 +13,14 @@ pub enum ServiceTier {
 }
 
 impl FromStr for ServiceTier {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "auto" => Ok(ServiceTier::Auto),
             "default" => Ok(ServiceTier::Default),
             "flex" => Ok(ServiceTier::Flex),
-            _ => Err(format!("Invalid service_tier value {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -46,7 +48,7 @@ mod tests {
 
         assert_eq!(
             ServiceTier::from_str(value),
-            Err(format!("Invalid service_tier value {}", value))
+            Err(ConversionError::FromStr(value.to_string()))
         );
     }
 }

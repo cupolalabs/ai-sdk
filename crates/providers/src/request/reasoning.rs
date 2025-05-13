@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ConversionError;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Effort {
@@ -11,14 +13,14 @@ pub enum Effort {
 }
 
 impl FromStr for Effort {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "low" => Ok(Effort::Low),
             "medium" => Ok(Effort::Medium),
             "high" => Ok(Effort::High),
-            _ => Err(format!("Invalid effort value: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -32,14 +34,14 @@ pub enum Summary {
 }
 
 impl FromStr for Summary {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "auto" => Ok(Summary::Auto),
             "concise" => Ok(Summary::Concise),
             "detailed" => Ok(Summary::Detailed),
-            _ => Err(format!("Invalid summary value: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -96,7 +98,7 @@ mod tests {
 
         assert_eq!(
             Effort::from_str(invalid_value),
-            Err(format!("Invalid effort value: {}", invalid_value))
+            Err(ConversionError::FromStr(invalid_value.to_string()))
         );
     }
 
@@ -116,7 +118,7 @@ mod tests {
 
         assert_eq!(
             Summary::from_str(invalid_value),
-            Err(format!("Invalid summary value: {}", invalid_value))
+            Err(ConversionError::FromStr(invalid_value.to_string()))
         );
     }
 }

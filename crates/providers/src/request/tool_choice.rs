@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::ConversionError;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolChoiceMode {
@@ -11,14 +13,14 @@ pub enum ToolChoiceMode {
 }
 
 impl FromStr for ToolChoiceMode {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "none" => Ok(ToolChoiceMode::None),
             "auto" => Ok(ToolChoiceMode::Auto),
             "required" => Ok(ToolChoiceMode::Required),
-            _ => Err(format!("Invalid ToolChoiceMode value: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -32,14 +34,14 @@ enum HostedToolType {
 }
 
 impl FromStr for HostedToolType {
-    type Err = String;
+    type Err = ConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "file_search" => Ok(HostedToolType::FileSearch),
             "web_search_preview" => Ok(HostedToolType::WebSearchPreview),
             "computer_use_preview" => Ok(HostedToolType::ComputerUsePreview),
-            _ => Err(format!("Invalid HostedToolType value: {}", s)),
+            _ => Err(ConversionError::FromStr(s.to_string())),
         }
     }
 }
@@ -83,13 +85,13 @@ pub enum ToolChoice<'a> {
     FunctionTool(FunctionToolChoice<'a>),
 }
 
-impl<'a> From<ToolChoiceMode> for ToolChoice<'a> {
+impl From<ToolChoiceMode> for ToolChoice<'_> {
     fn from(tool: ToolChoiceMode) -> Self {
         ToolChoice::Mode(tool)
     }
 }
 
-impl<'a> From<HostedToolChoice> for ToolChoice<'a> {
+impl From<HostedToolChoice> for ToolChoice<'_> {
     fn from(tool: HostedToolChoice) -> Self {
         ToolChoice::HostedTool(tool)
     }
