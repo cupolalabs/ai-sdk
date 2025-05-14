@@ -3,29 +3,6 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Status {
-    InProgress,
-    Completed,
-    Incomplete,
-    Failed,
-}
-
-impl FromStr for Status {
-    type Err = ConversionError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "in_progress" => Ok(Status::InProgress),
-            "completed" => Ok(Status::Completed),
-            "incomplete" => Ok(Status::Incomplete),
-            "failed" => Ok(Status::Failed),
-            _ => Err(ConversionError::FromStr(s.to_string())),
-        }
-    }
-}
-
 #[derive(Debug, Default, PartialEq, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -306,14 +283,6 @@ mod tests {
             file_content_json,
             json!({"type": "input_file", "file_id": file_id, "file_data": file_data, "filename": filename})
         );
-    }
-
-    #[test]
-    fn test_status_from_str() {
-        assert_eq!(Status::from_str("in_progress").unwrap(), Status::InProgress);
-        assert_eq!(Status::from_str("completed").unwrap(), Status::Completed);
-        assert_eq!(Status::from_str("incomplete").unwrap(), Status::Incomplete);
-        assert_eq!(Status::from_str("failed").unwrap(), Status::Failed);
     }
 
     #[test]

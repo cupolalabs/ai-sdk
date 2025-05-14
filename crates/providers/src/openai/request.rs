@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub mod request;
-
-pub use request::*;
+use crate::openai::common::{reasoning::Reasoning, service_tier::ServiceTier, text::Text};
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Request<'a> {
@@ -155,8 +153,8 @@ impl<'a> Request<'a> {
         self
     }
 
-    pub fn user(mut self, value: Truncation) -> Self {
-        self.truncation = Some(value);
+    pub fn user(mut self, value: &'a str) -> Self {
+        self.user = Some(value);
         self
     }
 }
