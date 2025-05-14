@@ -22,3 +22,21 @@ impl<'a> InputReference<'a> {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_json_values() {
+        let input_reference = InputReference::new("123").insert_type();
+        let json_value = serde_json::to_value(&input_reference).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "id": "123",
+                "type": "item_reference"
+            })
+        );
+    }
+}
