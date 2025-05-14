@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::{ConversionError, InputError};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum ComparisonOperator {
     Eq,
     Ne,
@@ -94,6 +94,7 @@ impl<'a> ComparisonFilter<'a> {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum CompoundOperator {
     And,
     Or,
@@ -130,6 +131,7 @@ impl<'a> CompoundFilter<'a> {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
+#[serde(untagged)]
 pub enum FileSearchFilter<'a> {
     Comparison(ComparisonFilter<'a>),
     Compound(CompoundFilter<'a>),
@@ -233,6 +235,7 @@ pub struct FunctionTool<'a> {
     strict: bool,
     #[serde(rename = "type")]
     type_field: &'a str, // NOTE: this is always "function" value
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<&'a str>,
 }
 
@@ -279,7 +282,7 @@ impl<'a> ComputerUseTool<'a> {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum SearchContextSize {
     Low,
     Medium,
@@ -303,9 +306,13 @@ impl FromStr for SearchContextSize {
 pub struct UserLocation<'a> {
     #[serde(rename = "type")]
     type_field: &'a str, // NOTE: this is always "approximate" value
+    #[serde(skip_serializing_if = "Option::is_none")]
     city: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<&'a str>, // NOTE: this is ISO-3166 country code
+    #[serde(skip_serializing_if = "Option::is_none")]
     region: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     timezone: Option<&'a str>, // NOTE: this is IANA timezone
 }
 
@@ -611,5 +618,133 @@ mod tests {
         });
 
         assert_eq!(tool, expected);
+    }
+
+    // test the json values of the tool
+    #[test]
+    fn test_json_values() {
+        // FileSearchTool test
+        let tool: Tool = FileSearchTool::new(vec!["id_1", "id_2"])
+            .filters(FileSearchFilter::build_comparison_filter(
+                "test_key",
+                "eq",
+                "test_value".to_string(),
+            ))
+            .max_num_results(1)
+            .ranking_options(
+                RankingOptions::new()
+                    .ranker("test_ranker")
+                    .score_threshold(1.0),
+            )
+            .into();
+        let json_value = serde_json::to_value(&tool).unwrap();
+
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "type": "file_search",
+                "vector_store_ids": ["id_1", "id_2"],
+                "filters": {
+                    "type": "comparison",
+                    "key": "test_key",
+                    "type": "eq",
+                    "value": "test_value"
+                },
+                "max_num_results": 1,
+                "ranking_options": {
+                    "ranker": "test_ranker",
+                    "score_threshold": 1.0
+                }
+            })
+        );
+
+        // FunctionTool test
+        let tool: Tool = FunctionTool::new("test", json!({}))
+            .description("this is description")
+            .into();
+        let json_value = serde_json::to_value(&tool).unwrap();
+
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "type": "function",
+                "name": "test",
+                "parameters": {},
+                "strict": true,
+                "description": "this is description"
+            })
+        );
+
+        // ComputerUseTool test
+        let tool: Tool = ComputerUseTool::new(64.0, 64.0, "test_environment").into();
+        let json_value = serde_json::to_value(&tool).unwrap();
+
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "type": "computer_use_preview",
+                "environment": "test_environment",
+                "display_width": 64.0,
+                "display_height": 64.0
+            })
+        );
+
+        // WebSearchTool test with web_search_preview
+        let tool: Tool = WebSearchTool::new("web_search_preview")
+            .unwrap()
+            .search_context_size("low")
+            .user_location(
+                UserLocation::new()
+                    .city("Istanbul")
+                    .country("TR")
+                    .region("Marmara")
+                    .timezone("Europe/Istanbul"),
+            )
+            .into();
+        let json_value = serde_json::to_value(&tool).unwrap();
+
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "type": "web_search_preview",
+                "search_context_size": "low",
+                "user_location": {
+                    "type": "approximate",
+                    "city": "Istanbul",
+                    "country": "TR",
+                    "region": "Marmara",
+                    "timezone": "Europe/Istanbul"
+                }
+            })
+        );
+
+        // WebSearchTool test with web_search_preview_2025_03_11C
+        let tool: Tool = WebSearchTool::new("web_search_preview_2025_03_11C")
+            .unwrap()
+            .search_context_size("low")
+            .user_location(
+                UserLocation::new()
+                    .city("Istanbul")
+                    .country("TR")
+                    .region("Marmara")
+                    .timezone("Europe/Istanbul"),
+            )
+            .into();
+        let json_value = serde_json::to_value(&tool).unwrap();
+
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "type": "web_search_preview_2025_03_11C",
+                "search_context_size": "low",
+                "user_location": {
+                    "type": "approximate",
+                    "city": "Istanbul",
+                    "country": "TR",
+                    "region": "Marmara",
+                    "timezone": "Europe/Istanbul"
+                }
+            })
+        );
     }
 }

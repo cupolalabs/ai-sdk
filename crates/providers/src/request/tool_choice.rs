@@ -199,4 +199,11 @@ mod tests {
         let result = HostedToolType::from_str("invalid");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_json_values() {
+        let tool_choice = ToolChoice::Mode(ToolChoiceMode::Auto);
+        let json_value = serde_json::to_value(&tool_choice).unwrap();
+        assert_eq!(json_value, serde_json::json!("auto"));
+    }
 }
