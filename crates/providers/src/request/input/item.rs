@@ -749,3 +749,547 @@ pub enum Item<'a> {
     FunctionToolCallOutput(FunctionToolCallOutputItem<'a>),
     Reasoning(ReasoningItem<'a>),
 }
+
+impl<'a> From<InputMessageItem<'a>> for Item<'a> {
+    fn from(item: InputMessageItem<'a>) -> Self {
+        Item::InputMessage(item)
+    }
+}
+
+impl<'a> From<OutputMessageItem<'a>> for Item<'a> {
+    fn from(item: OutputMessageItem<'a>) -> Self {
+        Item::OutputMessage(item)
+    }
+}
+
+impl<'a> From<FileSearchToolCallItem<'a>> for Item<'a> {
+    fn from(item: FileSearchToolCallItem<'a>) -> Self {
+        Item::FileSearchToolCall(item)
+    }
+}
+
+impl<'a> From<ComputerToolCallItem<'a>> for Item<'a> {
+    fn from(item: ComputerToolCallItem<'a>) -> Self {
+        Item::ComputerToolCall(item)
+    }
+}
+
+impl<'a> From<ComputerToolCallOutputItem<'a>> for Item<'a> {
+    fn from(item: ComputerToolCallOutputItem<'a>) -> Self {
+        Item::ComputerToolCallOutput(item)
+    }
+}
+
+impl<'a> From<WebSearchToolCallItem<'a>> for Item<'a> {
+    fn from(item: WebSearchToolCallItem<'a>) -> Self {
+        Item::WebSearchToolCall(item)
+    }
+}
+
+impl<'a> From<FunctionToolCallItem<'a>> for Item<'a> {
+    fn from(item: FunctionToolCallItem<'a>) -> Self {
+        Item::FunctionToolCall(item)
+    }
+}
+
+impl<'a> From<FunctionToolCallOutputItem<'a>> for Item<'a> {
+    fn from(item: FunctionToolCallOutputItem<'a>) -> Self {
+        Item::FunctionToolCallOutput(item)
+    }
+}
+
+impl<'a> From<ReasoningItem<'a>> for Item<'a> {
+    fn from(item: ReasoningItem<'a>) -> Self {
+        Item::Reasoning(item)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{json, to_value};
+
+    #[test]
+    fn test_input_message_item_json() {
+        let item = Item::from(InputMessageItem {
+            content: vec![],
+            role: Role::User,
+            status: Some(Status::InProgress),
+            type_field: Some("message"),
+        });
+        let value = to_value(&item).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "content": [],
+                "role": "user",
+                "status": "in_progress",
+                "type": "message"
+            })
+        );
+    }
+
+    #[test]
+    fn test_output_message_item_json() {
+        let item = Item::from(OutputMessageItem {
+            content: vec![],
+            id: "id123",
+            role: Role::Assistant,
+            status: Status::Completed,
+            type_field: "message",
+        });
+        let value = to_value(&item).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "content": [],
+                "id": "id123",
+                "role": "assistant",
+                "status": "completed",
+                "type": "message"
+            })
+        );
+    }
+
+    #[test]
+    fn test_file_search_tool_call_item_json() {
+        let item = Item::from(FileSearchToolCallItem {
+            id: "search1",
+            queries: vec!["foo", "bar"],
+            status: Status::InProgress,
+            type_field: "file_search_call",
+            results: vec![],
+        });
+        let value = to_value(&item).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "id": "search1",
+                "queries": ["foo", "bar"],
+                "status": "in_progress",
+                "type": "file_search_call",
+                "results": []
+            })
+        );
+    }
+
+    #[test]
+    fn test_function_tool_call_output_item_json() {
+        let item = Item::from(FunctionToolCallOutputItem {
+            call_id: "call42",
+            output: "{\"result\":42}",
+            type_field: "function_call_output",
+            id: Some("id42"),
+            status: Some(Status::Completed),
+        });
+        let value = to_value(&item).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "call_id": "call42",
+                "output": "{\"result\":42}",
+                "type": "function_call_output",
+                "id": "id42",
+                "status": "completed"
+            })
+        );
+    }
+
+    #[test]
+    fn test_file_citation_json() {
+        let fc = FileCitation {
+            file_id: "file1",
+            index: 1,
+            type_field: "file_citation",
+        };
+        let value = to_value(&fc).unwrap();
+        assert_eq!(
+            value,
+            json!({"file_id": "file1", "index": 1, "type": "file_citation"})
+        );
+    }
+
+    #[test]
+    fn test_url_citation_json() {
+        let uc = UrlCitation {
+            end_index: "10",
+            start_index: "5",
+            title: "Example",
+            type_field: "url_citation",
+            url: "https://example.com",
+        };
+        let value = to_value(&uc).unwrap();
+        assert_eq!(
+            value,
+            json!({"end_index": "10", "start_index": "5", "title": "Example", "type": "url_citation", "url": "https://example.com"})
+        );
+    }
+
+    #[test]
+    fn test_file_path_json() {
+        let fp = FilePath {
+            file_id: "file2",
+            index: 2,
+            type_field: "file_path",
+        };
+        let value = to_value(&fp).unwrap();
+        assert_eq!(
+            value,
+            json!({"file_id": "file2", "index": 2, "type": "file_path"})
+        );
+    }
+
+    #[test]
+    fn test_annotation_json() {
+        let ann = Annotation::FileCitation(FileCitation {
+            file_id: "file1",
+            index: 1,
+            type_field: "file_citation",
+        });
+        let value = to_value(&ann).unwrap();
+        assert_eq!(
+            value,
+            json!({"file_id": "file1", "index": 1, "type": "file_citation"})
+        );
+    }
+
+    #[test]
+    fn test_output_text_json() {
+        let ot = OutputText {
+            annotations: vec![],
+            text: "output",
+            type_field: "output_text",
+        };
+        let value = to_value(&ot).unwrap();
+        assert_eq!(
+            value,
+            json!({"annotations": [], "text": "output", "type": "output_text"})
+        );
+    }
+
+    #[test]
+    fn test_refusal_json() {
+        let r = Refusal {
+            refusal: "no",
+            type_field: "refusal",
+        };
+        let value = to_value(&r).unwrap();
+        assert_eq!(value, json!({"refusal": "no", "type": "refusal"}));
+    }
+
+    #[test]
+    fn test_output_content_json() {
+        let oc = OutputContent::Refusal(Refusal {
+            refusal: "no",
+            type_field: "refusal",
+        });
+        let value = to_value(&oc).unwrap();
+        assert_eq!(value, json!({"refusal": "no", "type": "refusal"}));
+    }
+
+    #[test]
+    fn test_file_search_tool_call_result_json() {
+        let mut map = std::collections::HashMap::new();
+        map.insert("k".to_string(), "v".to_string());
+        let res = FileSearchToolCallResult {
+            attributes: Some(map),
+            file_id: Some("f"),
+            filename: Some("n"),
+            score: Some(1),
+            text: Some("t"),
+        };
+        let value = to_value(&res).unwrap();
+        assert_eq!(
+            value,
+            json!({"attributes": {"k": "v"}, "file_id": "f", "filename": "n", "score": 1, "text": "t"})
+        );
+    }
+
+    #[test]
+    fn test_click_action_json() {
+        let ca = ClickAction {
+            button: "left",
+            type_field: "click",
+            x: 1,
+            y: 2,
+        };
+        let value = to_value(&ca).unwrap();
+        assert_eq!(
+            value,
+            json!({"button": "left", "type": "click", "x": 1, "y": 2})
+        );
+    }
+
+    #[test]
+    fn test_double_click_action_json() {
+        let dca = DoubleClickAction {
+            type_field: "double_click",
+            x: 3,
+            y: 4,
+        };
+        let value = to_value(&dca).unwrap();
+        assert_eq!(value, json!({"type": "double_click", "x": 3, "y": 4}));
+    }
+
+    #[test]
+    fn test_drag_action_path_json() {
+        let dap = DragActionPath { x: 5, y: 6 };
+        let value = to_value(&dap).unwrap();
+        assert_eq!(value, json!({"x": 5, "y": 6}));
+    }
+
+    #[test]
+    fn test_drag_action_json() {
+        let da = DragAction {
+            type_field: "drag",
+            path: vec![DragActionPath { x: 1, y: 2 }],
+        };
+        let value = to_value(&da).unwrap();
+        assert_eq!(value, json!({"type": "drag", "path": [{"x": 1, "y": 2}]}));
+    }
+
+    #[test]
+    fn test_key_press_action_json() {
+        let kpa = KeyPressAction {
+            type_field: "keypress",
+            keys: vec!["a", "b"],
+        };
+        let value = to_value(&kpa).unwrap();
+        assert_eq!(value, json!({"type": "keypress", "keys": ["a", "b"]}));
+    }
+
+    #[test]
+    fn test_move_action_json() {
+        let ma = MoveAction {
+            type_field: "move",
+            x: 7,
+            y: 8,
+        };
+        let value = to_value(&ma).unwrap();
+        assert_eq!(value, json!({"type": "move", "x": 7, "y": 8}));
+    }
+
+    #[test]
+    fn test_screenshot_action_json() {
+        let sa = ScreenshotAction {
+            type_field: "screenshot",
+        };
+        let value = to_value(&sa).unwrap();
+        assert_eq!(value, json!({"type": "screenshot"}));
+    }
+
+    #[test]
+    fn test_scroll_action_json() {
+        let sa = ScrollAction {
+            type_field: "scroll",
+            scroll_x: 1,
+            scroll_y: 2,
+            x: 3,
+            y: 4,
+        };
+        let value = to_value(&sa).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "scroll", "scroll_x": 1, "scroll_y": 2, "x": 3, "y": 4})
+        );
+    }
+
+    #[test]
+    fn test_type_action_json() {
+        let ta = TypeAction {
+            type_field: "type",
+            text: "abc",
+        };
+        let value = to_value(&ta).unwrap();
+        assert_eq!(value, json!({"type": "type", "text": "abc"}));
+    }
+
+    #[test]
+    fn test_wait_action_json() {
+        let wa = WaitAction { type_field: "wait" };
+        let value = to_value(&wa).unwrap();
+        assert_eq!(value, json!({"type": "wait"}));
+    }
+
+    #[test]
+    fn test_computer_tool_action_json() {
+        let cta = ComputerToolAction::Click(ClickAction {
+            button: "left",
+            type_field: "click",
+            x: 1,
+            y: 2,
+        });
+        let value = to_value(&cta).unwrap();
+        assert_eq!(
+            value,
+            json!({"button": "left", "type": "click", "x": 1, "y": 2})
+        );
+    }
+
+    #[test]
+    fn test_pending_safety_checks_json() {
+        let psc = PendingSafetyChecks {
+            code: "c",
+            id: "i",
+            message: "m",
+        };
+        let value = to_value(&psc).unwrap();
+        assert_eq!(value, json!({"code": "c", "id": "i", "message": "m"}));
+    }
+
+    #[test]
+    fn test_computer_tool_call_item_json() {
+        let ctc = ComputerToolCallItem {
+            action: ComputerToolAction::Click(ClickAction {
+                button: "left",
+                type_field: "click",
+                x: 1,
+                y: 2,
+            }),
+            call_id: "cid",
+            id: "id",
+            pending_safety_checks: vec![PendingSafetyChecks {
+                code: "c",
+                id: "i",
+                message: "m",
+            }],
+            status: Status::Completed,
+            type_field: "computer_call",
+        };
+        let value = to_value(&ctc).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "action": {"button": "left", "type": "click", "x": 1, "y": 2},
+                "call_id": "cid",
+                "id": "id",
+                "pending_safety_checks": [{"code": "c", "id": "i", "message": "m"}],
+                "status": "completed",
+                "type": "computer_call"
+            })
+        );
+    }
+
+    #[test]
+    fn test_output_json() {
+        let o = Output {
+            type_field: "computer_screenshot",
+            file_id: Some("fid"),
+            image_url: Some("url"),
+        };
+        let value = to_value(&o).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "computer_screenshot", "file_id": "fid", "image_url": "url"})
+        );
+    }
+
+    #[test]
+    fn test_acknowledged_safety_checks_json() {
+        let asc = AcknowledgedSafetyChecks {
+            id: "id",
+            code: Some("c"),
+            message: Some("m"),
+        };
+        let value = to_value(&asc).unwrap();
+        assert_eq!(value, json!({"id": "id", "code": "c", "message": "m"}));
+    }
+
+    #[test]
+    fn test_computer_tool_call_output_item_json() {
+        let cto = ComputerToolCallOutputItem {
+            call_id: "cid",
+            output: Output {
+                type_field: "computer_screenshot",
+                file_id: Some("fid"),
+                image_url: Some("url"),
+            },
+            type_field: "computer_call_output",
+            acknowledged_safety_checks: Some(vec![AcknowledgedSafetyChecks {
+                id: "id",
+                code: Some("c"),
+                message: Some("m"),
+            }]),
+            id: Some("oid"),
+            status: Some(Status::Completed),
+        };
+        let value = to_value(&cto).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "call_id": "cid",
+                "output": {"type": "computer_screenshot", "file_id": "fid", "image_url": "url"},
+                "type": "computer_call_output",
+                "acknowledged_safety_checks": [{"id": "id", "code": "c", "message": "m"}],
+                "id": "oid",
+                "status": "completed"
+            })
+        );
+    }
+
+    #[test]
+    fn test_web_search_tool_call_item_json() {
+        let wstc = WebSearchToolCallItem {
+            id: "wid",
+            status: "completed",
+            type_field: "web_search_call",
+        };
+        let value = to_value(&wstc).unwrap();
+        assert_eq!(
+            value,
+            json!({"id": "wid", "status": "completed", "type": "web_search_call"})
+        );
+    }
+
+    #[test]
+    fn test_function_tool_call_item_json() {
+        let ftc = FunctionToolCallItem {
+            arguments: "{}",
+            call_id: "cid",
+            name: "func",
+            type_field: "function_call",
+            id: Some("fid"),
+            status: Some(Status::Completed),
+        };
+        let value = to_value(&ftc).unwrap();
+        assert_eq!(
+            value,
+            json!({"arguments": "{}", "call_id": "cid", "name": "func", "type": "function_call", "id": "fid", "status": "completed"})
+        );
+    }
+
+    #[test]
+    fn test_summary_json() {
+        let s = Summary {
+            text: "sum",
+            type_field: "summary_text",
+        };
+        let value = to_value(&s).unwrap();
+        assert_eq!(value, json!({"text": "sum", "type": "summary_text"}));
+    }
+
+    #[test]
+    fn test_reasoning_item_json() {
+        let r = ReasoningItem {
+            id: "rid",
+            summary: vec![Summary {
+                text: "sum",
+                type_field: "summary_text",
+            }],
+            type_field: "reasoning",
+            encrypted_content: Some("enc"),
+            status: Some(Status::Completed),
+        };
+        let value = to_value(&r).unwrap();
+        assert_eq!(
+            value,
+            json!({
+                "id": "rid",
+                "summary": [{"text": "sum", "type": "summary_text"}],
+                "type": "reasoning",
+                "encrypted_content": "enc",
+                "status": "completed"
+            })
+        );
+    }
+}
