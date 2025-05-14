@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::ConversionError;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename = "lowercase")]
+#[serde(rename_all = "snake_case")]
 enum ResponseFormatType {
     Text,
     JsonSchema,
@@ -238,5 +238,68 @@ mod tests {
         };
 
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_json_values() {
+        // Test default text format
+        let text = Text::new();
+        let json_value = serde_json::to_value(&text).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "format": {
+                    "type": "text"
+                }
+            })
+        );
+
+        // Test with JSON schema format
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "age": { "type": "number" },
+                "active": { "type": "boolean" }
+            },
+            "required": ["name", "age"]
+        });
+        let json_schema_format = JsonSchemaFormat::new("user_data", schema.clone())
+            .description("User information schema")
+            .strict();
+        let text_with_schema = Text::new().response_format(json_schema_format.into());
+        let json_value = serde_json::to_value(&text_with_schema).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "format": {
+                    "type": "json_schema",
+                    "name": "user_data",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "age": { "type": "number" },
+                            "active": { "type": "boolean" }
+                        },
+                        "required": ["name", "age"]
+                    },
+                    "description": "User information schema",
+                    "strict": true
+                }
+            })
+        );
+
+        // Test with JSON object format
+        let text_with_json_object = Text::new().response_format(JsonObjectFormat::new().into());
+        let json_value = serde_json::to_value(&text_with_json_object).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "format": {
+                    "type": "json_object"
+                }
+            })
+        );
     }
 }

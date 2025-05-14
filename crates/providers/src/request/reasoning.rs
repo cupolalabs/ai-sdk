@@ -121,4 +121,17 @@ mod tests {
             Err(ConversionError::FromStr(invalid_value.to_string()))
         );
     }
+
+    #[test]
+    fn test_json_values() {
+        let reasoning = Reasoning::new().effort("low").summary("detailed");
+        let json_value = serde_json::to_value(&reasoning).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "effort": "low",
+                "summary": "detailed"
+            })
+        );
+    }
 }

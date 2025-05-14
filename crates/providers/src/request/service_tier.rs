@@ -51,4 +51,11 @@ mod tests {
             Err(ConversionError::FromStr(value.to_string()))
         );
     }
+
+    #[test]
+    fn test_json_values() {
+        let service_tier = ServiceTier::Auto;
+        let json_value = serde_json::to_value(&service_tier).unwrap();
+        assert_eq!(json_value, serde_json::json!("auto"));
+    }
 }
