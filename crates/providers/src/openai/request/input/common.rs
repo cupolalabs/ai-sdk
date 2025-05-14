@@ -1,4 +1,4 @@
-use crate::errors::ConversionError;
+use crate::openai::errors::ConversionError;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};

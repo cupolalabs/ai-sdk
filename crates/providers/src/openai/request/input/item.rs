@@ -1,6 +1,5 @@
-use crate::errors::InputError;
-use crate::request::input::common::{Content, Role, Status};
-use crate::ConversionError;
+use crate::openai::errors::{ConversionError, InputError};
+use crate::openai::request::input::common::{Content, Role, Status};
 use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};

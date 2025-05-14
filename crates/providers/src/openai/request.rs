@@ -54,7 +54,6 @@ impl<'a> Request<'a> {
         }
     }
 
-    // NOTE: Adds single Include item to the include vector
     pub fn include(mut self, value: Include) -> Self {
         match self.include {
             Some(ref mut include) => include.push(value),

@@ -1,9 +1,7 @@
-use crate::request::input::common::{Content, Role};
-use std::str::FromStr;
-
-use crate::errors::ConversionError;
-
+use crate::openai::errors::ConversionError;
+use crate::openai::request::input::common::{Content, Role};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
@@ -83,7 +81,7 @@ impl<'a> From<InputItemContentList<'a>> for InputMessage<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::input::TextContent;
+    use crate::openai::request::input::common::TextContent;
 
     use super::*;
 
