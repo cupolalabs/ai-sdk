@@ -5,7 +5,7 @@ use crate::errors::ConversionError;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct TextInput<'a> {
     pub role: Role,
@@ -67,4 +67,72 @@ impl<'a> InputItemContentList<'a> {
 pub enum InputMessage<'a> {
     TextInput(TextInput<'a>),
     InputItemContentList(InputItemContentList<'a>),
+}
+
+impl<'a> From<TextInput<'a>> for InputMessage<'a> {
+    fn from(text_input: TextInput<'a>) -> Self {
+        InputMessage::TextInput(text_input)
+    }
+}
+
+impl<'a> From<InputItemContentList<'a>> for InputMessage<'a> {
+    fn from(input_item_content_list: InputItemContentList<'a>) -> Self {
+        InputMessage::InputItemContentList(input_item_content_list)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::input::TextContent;
+
+    use super::*;
+
+    #[test]
+    fn test_json_values() {
+        let text_input = TextInput::new("Hello, world!");
+        let input_message: InputMessage = text_input.clone().into();
+        assert_eq!(input_message, InputMessage::TextInput(text_input));
+
+        let json_value = serde_json::to_value(&input_message).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "role": "user",
+                "content": "Hello, world!"
+            })
+        );
+    }
+
+    #[test]
+    fn test_json_values_input_item_content_list() {
+        let mut input_item_content_list = InputItemContentList::new()
+            .insert_type()
+            .role("developer")
+            .unwrap();
+
+        input_item_content_list
+            .content
+            .push(Content::Text(TextContent::new().text("Hello, world!")));
+
+        let input_message: InputMessage = input_item_content_list.clone().into();
+        assert_eq!(
+            input_message,
+            InputMessage::InputItemContentList(input_item_content_list)
+        );
+
+        let json_value = serde_json::to_value(&input_message).unwrap();
+        assert_eq!(
+            json_value,
+            serde_json::json!({
+                "role": "developer",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "Hello, world!"
+                    }
+                ],
+                "type": "message"
+            })
+        );
+    }
 }
