@@ -3,7 +3,10 @@ use crate::openai::common::{
     function_tool_call_item::FunctionToolCallItem, output_message_item::OutputMessageItem,
     reasoning_item::ReasoningItem, web_search_tool_call_item::WebSearchToolCallItem,
 };
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub enum ResponseOutput<'a> {
     OutputMessage(OutputMessageItem<'a>),
     FileSearchToolCall(FileSearchToolCallItem<'a>),

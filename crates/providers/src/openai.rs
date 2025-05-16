@@ -21,6 +21,9 @@ pub mod response {
     pub mod response_error;
     pub mod response_output;
     pub mod usage;
+    pub mod events {
+        pub mod streaming;
+    }
 }
 
 pub mod request {
