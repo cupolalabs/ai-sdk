@@ -8,7 +8,9 @@ pub struct ReasoningItem<'a> {
     pub summary: Vec<Summary<'a>>,
     #[serde(rename = "type")]
     pub type_field: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_content: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
 }
 

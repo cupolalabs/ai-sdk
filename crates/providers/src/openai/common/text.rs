@@ -36,7 +36,9 @@ pub struct JsonSchemaFormat<'a> {
     type_field: ResponseFormatType, // always jsonschema
     name: &'a str,
     schema: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     strict: Option<bool>,
 }
 
@@ -151,6 +153,7 @@ impl Default for ResponseFormat<'_> {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct Text<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
     format: Option<ResponseFormat<'a>>,
 }
 

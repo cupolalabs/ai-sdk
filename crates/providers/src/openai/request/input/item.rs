@@ -47,7 +47,9 @@ impl<'a> InputMessageItem<'a> {
 pub struct ComputerToolCallOutputItemOutput<'a> {
     #[serde(rename = "type")]
     pub type_field: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image_url: Option<&'a str>,
 }
 
@@ -81,7 +83,9 @@ impl<'a> ComputerToolCallOutputItemOutput<'a> {
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct AcknowledgedSafetyChecks<'a> {
     pub id: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<&'a str>,
 }
 
@@ -113,7 +117,9 @@ pub struct ComputerToolCallOutputItem<'a> {
     #[serde(rename = "type")]
     pub type_field: &'a str,
     pub acknowledged_safety_checks: Option<Vec<AcknowledgedSafetyChecks<'a>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
 }
 
@@ -151,7 +157,9 @@ pub struct FunctionToolCallOutputItem<'a> {
     pub output: &'a str,
     #[serde(rename = "type")]
     pub type_field: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
 }
 

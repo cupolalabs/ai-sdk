@@ -9,7 +9,9 @@ pub struct FunctionToolCallItem<'a> {
     pub name: &'a str,
     #[serde(rename = "type")]
     pub type_field: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
 }
 
