@@ -1,4 +1,4 @@
-use crate::openai::common::output_message_item::{Annotation, OutputContent, OutputText};
+use crate::openai::common::output_message_item::{Annotation, OutputContent};
 use crate::openai::common::{
     reasoning::Reasoning, service_tier::ServiceTier, status::Status, text::Text, tool::Tool,
     tool_choice::ToolChoice, truncation::Truncation,
