@@ -2,11 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::openai::common::{reasoning::Reasoning, service_tier::ServiceTier, text::Text};
+use crate::openai::constants::OpenAIModelId;
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Request<'a> {
     input: Input<'a>,
-    model: &'a str,
+    model: OpenAIModelId,
     #[serde(skip_serializing_if = "Option::is_none")]
     include: Option<Vec<Include>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -44,7 +45,7 @@ pub struct Request<'a> {
 }
 
 impl<'a> Request<'a> {
-    pub fn new(model: &'a str, input: Input<'a>) -> Self {
+    pub fn new(model: OpenAIModelId, input: Input<'a>) -> Self {
         Self {
             model,
             input,
