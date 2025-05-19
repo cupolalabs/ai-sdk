@@ -12,3 +12,6 @@ reqwest = { workspace = true, features = ["stream", "json"] }
 async-trait = "0.1.73"
 bytes = "1.4.0"
 futures = "0.3.28"
+
+[dev-dependencies]
+tokio = { version = "1.36.0", features = ["full", "test-util", "macros"] }
