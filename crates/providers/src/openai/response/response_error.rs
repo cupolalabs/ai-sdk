@@ -1,21 +1,23 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct ResponseError<'a> {
-    code: &'a str,
-    message: &'a str,
+pub struct ResponseError {
+    code: String,
+    message: String,
 }
 
-impl<'a> ResponseError<'a> {
-    pub fn new(code: &'a str, message: &'a str) -> Self {
-        Self { code, message }
+impl ResponseError {
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use serde_json::json;
 
     #[test]

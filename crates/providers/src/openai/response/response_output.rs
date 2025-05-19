@@ -5,15 +5,14 @@ use crate::openai::common::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub enum ResponseOutput<'a> {
-    OutputMessage(OutputMessageItem<'a>),
-    FileSearchToolCall(FileSearchToolCallItem<'a>),
-    ComputerToolCall(ComputerToolCallItem<'a>),
-    WebSearchToolCall(WebSearchToolCallItem<'a>),
-    FunctionToolCall(FunctionToolCallItem<'a>),
-    Reasoning(ReasoningItem<'a>),
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum ResponseOutput {
+    OutputMessage(OutputMessageItem),
+    FileSearchToolCall(FileSearchToolCallItem),
+    ComputerToolCall(ComputerToolCallItem),
+    WebSearchToolCall(WebSearchToolCallItem),
+    FunctionToolCall(FunctionToolCallItem),
+    Reasoning(ReasoningItem),
 }
 
 // TODO: Implement the impl for ResponseOutput

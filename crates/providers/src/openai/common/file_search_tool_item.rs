@@ -6,20 +6,20 @@ use crate::openai::common::status::Status;
 use crate::openai::errors::ConversionError;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct FileSearchToolCallResult<'a> {
+pub struct FileSearchToolCallResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attributes: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<&'a str>,
+    pub file_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub filename: Option<&'a str>,
+    pub filename: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub score: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<&'a str>,
+    pub text: Option<String>,
 }
 
-impl<'a> FileSearchToolCallResult<'a> {
+impl FileSearchToolCallResult {
     pub fn new() -> Self {
         Self::default()
     }
@@ -36,13 +36,13 @@ impl<'a> FileSearchToolCallResult<'a> {
         self
     }
 
-    pub fn file_id(mut self, value: &'a str) -> Self {
-        self.file_id = Some(value);
+    pub fn file_id(mut self, value: impl Into<String>) -> Self {
+        self.file_id = Some(value.into());
         self
     }
 
-    pub fn filename(mut self, value: &'a str) -> Self {
-        self.filename = Some(value);
+    pub fn filename(mut self, value: impl Into<String>) -> Self {
+        self.filename = Some(value.into());
         self
     }
 
@@ -51,40 +51,39 @@ impl<'a> FileSearchToolCallResult<'a> {
         self
     }
 
-    pub fn text(mut self, value: &'a str) -> Self {
-        self.text = Some(value);
+    pub fn text(mut self, value: impl Into<String>) -> Self {
+        self.text = Some(value.into());
         self
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub struct FileSearchToolCallItem<'a> {
-    pub id: &'a str,
-    pub queries: Vec<&'a str>,
+pub struct FileSearchToolCallItem {
+    pub id: String,
+    pub queries: Vec<String>,
     pub status: Status,
     #[serde(rename = "type")]
-    pub type_field: &'a str,
-    pub results: Vec<FileSearchToolCallResult<'a>>,
+    pub type_field: String,
+    pub results: Vec<FileSearchToolCallResult>,
 }
 
-impl<'a> FileSearchToolCallItem<'a> {
-    pub fn new(id: &'a str, status: &'a str) -> Result<Self, ConversionError> {
+impl FileSearchToolCallItem {
+    pub fn new(id: impl Into<String>, status: impl AsRef<str>) -> Result<Self, ConversionError> {
         Ok(Self {
-            id,
+            id: id.into(),
             queries: vec![],
-            status: Status::from_str(status)?,
-            type_field: "file_search_call",
+            status: Status::from_str(status.as_ref())?,
+            type_field: "file_search_call".to_string(),
             results: vec![],
         })
     }
 
-    pub fn extend_queries(mut self, queries: Vec<&'a str>) -> Self {
-        self.queries.extend(queries);
+    pub fn extend_queries(mut self, queries: Vec<impl Into<String>>) -> Self {
+        self.queries.extend(queries.into_iter().map(|q| q.into()));
         self
     }
 
-    pub fn extend_results(mut self, results: Vec<FileSearchToolCallResult<'a>>) -> Self {
+    pub fn extend_results(mut self, results: Vec<FileSearchToolCallResult>) -> Self {
         self.results.extend(results);
         self
     }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::Deserialize, Serialize};
 use std::fmt;
 use std::pin::Pin;
 use tokio_stream::Stream;
@@ -60,14 +60,21 @@ impl std::error::Error for ProviderError {
 /// Each provider must implement methods to get the base URL and API key for their specific service.
 #[async_trait]
 pub trait Provider {
+    type Request: Serialize + Send + Sync;
+    type GenerateResponse: for<'de> Deserialize<'de> + Send;
+    type StreamResponse: for<'de> Deserialize<'de> + Send;
+
     fn get_base_url(&self) -> String;
     fn get_api_key(&self) -> String;
-    async fn generate<P: Serialize + Send + Sync, R: DeserializeOwned + Send>(
+    async fn generate(
         &self,
-        request: &P,
-    ) -> Result<R, ProviderError>;
-    async fn stream<P: Serialize + Send + Sync, R: DeserializeOwned + Send>(
+        request: &Self::Request,
+    ) -> Result<Self::GenerateResponse, ProviderError>;
+    async fn stream(
         &self,
-        request: &P,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<R, ProviderError>> + Send>>, ProviderError>;
+        request: &Self::Request,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Self::StreamResponse, ProviderError>> + Send>>,
+        ProviderError,
+    >;
 }

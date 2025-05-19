@@ -49,28 +49,28 @@ impl FromStr for ContentType {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct TextContent<'a> {
+pub struct TextContent {
     #[serde(rename = "type")]
     pub type_field: ContentType, // always InputText
-    pub text: &'a str,
+    pub text: String,
 }
 
-impl Default for TextContent<'_> {
+impl Default for TextContent {
     fn default() -> Self {
         Self {
             type_field: ContentType::InputText,
-            text: "",
+            text: String::new(),
         }
     }
 }
 
-impl<'a> TextContent<'a> {
+impl TextContent {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn text(mut self, text: &'a str) -> Self {
-        self.text = text;
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = text.into();
         self
     }
 }
@@ -98,17 +98,17 @@ impl FromStr for ImageDetail {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct ImageContent<'a> {
+pub struct ImageContent {
     #[serde(rename = "type")]
     pub type_field: ContentType, // always InputImage
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub image_url: Option<&'a str>,
+    pub image_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<&'a str>,
+    pub file_id: Option<String>,
     pub detail: ImageDetail,
 }
 
-impl Default for ImageContent<'_> {
+impl Default for ImageContent {
     fn default() -> Self {
         Self {
             type_field: ContentType::InputImage,
@@ -119,40 +119,40 @@ impl Default for ImageContent<'_> {
     }
 }
 
-impl<'a> ImageContent<'a> {
+impl ImageContent {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn image_url(mut self, value: &'a str) -> Self {
-        self.image_url = Some(value);
+    pub fn image_url(mut self, value: impl Into<String>) -> Self {
+        self.image_url = Some(value.into());
         self
     }
 
-    pub fn file_id(mut self, value: &'a str) -> Self {
-        self.file_id = Some(value);
+    pub fn file_id(mut self, value: impl Into<String>) -> Self {
+        self.file_id = Some(value.into());
         self
     }
 
-    pub fn detail(mut self, value: &'a str) -> Result<Self, ConversionError> {
-        self.detail = ImageDetail::from_str(value)?;
+    pub fn detail(mut self, value: impl AsRef<str>) -> Result<Self, ConversionError> {
+        self.detail = ImageDetail::from_str(value.as_ref())?;
         Ok(self)
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct FileContent<'a> {
+pub struct FileContent {
     #[serde(rename = "type")]
     pub type_field: ContentType, // always InputFile,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<&'a str>,
+    pub file_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_data: Option<&'a str>,
+    pub file_data: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub filename: Option<&'a str>,
+    pub filename: Option<String>,
 }
 
-impl Default for FileContent<'_> {
+impl Default for FileContent {
     fn default() -> Self {
         Self {
             type_field: ContentType::InputFile,
@@ -163,52 +163,49 @@ impl Default for FileContent<'_> {
     }
 }
 
-impl<'a> FileContent<'a> {
+impl FileContent {
     pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
+        Self::default()
     }
 
-    pub fn file_id(mut self, value: &'a str) -> Self {
-        self.file_id = Some(value);
+    pub fn file_id(mut self, value: impl Into<String>) -> Self {
+        self.file_id = Some(value.into());
         self
     }
 
-    pub fn file_data(mut self, value: &'a str) -> Self {
-        self.file_data = Some(value);
+    pub fn file_data(mut self, value: impl Into<String>) -> Self {
+        self.file_data = Some(value.into());
         self
     }
 
-    pub fn filename(mut self, value: &'a str) -> Self {
-        self.filename = Some(value);
+    pub fn filename(mut self, value: impl Into<String>) -> Self {
+        self.filename = Some(value.into());
         self
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-pub enum Content<'a> {
-    Text(TextContent<'a>),
-    Image(ImageContent<'a>),
-    File(FileContent<'a>),
+pub enum Content {
+    Text(TextContent),
+    Image(ImageContent),
+    File(FileContent),
 }
 
-impl<'a> From<TextContent<'a>> for Content<'a> {
-    fn from(text_content: TextContent<'a>) -> Self {
+impl From<TextContent> for Content {
+    fn from(text_content: TextContent) -> Self {
         Self::Text(text_content)
     }
 }
 
-impl<'a> From<ImageContent<'a>> for Content<'a> {
-    fn from(image_content: ImageContent<'a>) -> Self {
+impl From<ImageContent> for Content {
+    fn from(image_content: ImageContent) -> Self {
         Self::Image(image_content)
     }
 }
 
-impl<'a> From<FileContent<'a>> for Content<'a> {
-    fn from(file_content: FileContent<'a>) -> Self {
+impl From<FileContent> for Content {
+    fn from(file_content: FileContent) -> Self {
         Self::File(file_content)
     }
 }

@@ -1,24 +1,23 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub struct InputReference<'a> {
-    pub id: &'a str,
+pub struct InputReference {
+    pub id: String,
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub type_field: Option<&'a str>,
+    pub type_field: Option<String>,
 }
 
-impl<'a> InputReference<'a> {
-    pub fn new(id: &'a str) -> Self {
+impl InputReference {
+    pub fn new(id: impl Into<String>) -> Self {
         Self {
-            id,
+            id: id.into(),
             type_field: None,
         }
     }
 
     pub fn insert_type(mut self) -> Self {
-        self.type_field = Some("item_reference");
+        self.type_field = Some("item_reference".to_string());
         self
     }
 }

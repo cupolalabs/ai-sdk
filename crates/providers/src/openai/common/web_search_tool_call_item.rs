@@ -1,19 +1,19 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WebSearchToolCallItem<'a> {
-    pub id: &'a str,
-    pub status: &'a str,
+pub struct WebSearchToolCallItem {
+    pub id: String,
+    pub status: String,
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
 }
 
-impl<'a> WebSearchToolCallItem<'a> {
-    pub fn new(id: &'a str, status: &'a str) -> Self {
+impl WebSearchToolCallItem {
+    pub fn new(id: impl Into<String>, status: impl Into<String>) -> Self {
         Self {
-            id,
-            status,
-            type_field: "web_search_call",
+            id: id.into(),
+            status: status.into(),
+            type_field: "web_search_call".to_string(),
         }
     }
 }

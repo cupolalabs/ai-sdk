@@ -1,87 +1,106 @@
 use crate::openai::errors::ConversionError;
-use crate::openai::request::input::common::{Content, Role};
+use crate::openai::request::input_models::common::{Content, Role};
+use crate::openai::request::input_models::input_reference::InputReference;
+use crate::openai::request::input_models::item::Item;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub struct TextInput<'a> {
+pub struct TextInput {
     pub role: Role,
-    pub content: &'a str,
+    pub content: String,
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub type_field: Option<&'a str>,
+    pub type_field: Option<String>,
 }
 
-impl<'a> TextInput<'a> {
-    pub fn new(content: &'a str) -> Self {
+impl TextInput {
+    pub fn new(content: impl Into<String>) -> Self {
         Self {
             role: Role::default(),
-            content,
+            content: content.into(),
             type_field: None,
         }
     }
 
-    pub fn role(mut self, role: &'a str) -> Result<Self, ConversionError> {
-        self.role = Role::from_str(role)?;
+    pub fn role(mut self, role: impl AsRef<str>) -> Result<Self, ConversionError> {
+        self.role = Role::from_str(role.as_ref())?;
         Ok(self)
     }
 
     pub fn insert_type(mut self) -> Self {
-        self.type_field = Some("message");
+        self.type_field = Some("message".to_string());
         self
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub struct InputItemContentList<'a> {
+pub struct InputItemContentList {
     pub role: Role,
-    pub content: Vec<Content<'a>>,
+    pub content: Vec<Content>,
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub type_field: Option<&'a str>,
+    pub type_field: Option<String>,
 }
 
-impl<'a> InputItemContentList<'a> {
+impl InputItemContentList {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn role(mut self, role: &'a str) -> Result<Self, ConversionError> {
-        self.role = Role::from_str(role)?;
+    pub fn role(mut self, role: impl AsRef<str>) -> Result<Self, ConversionError> {
+        self.role = Role::from_str(role.as_ref())?;
         Ok(self)
     }
 
     pub fn insert_type(mut self) -> Self {
-        self.type_field = Some("message");
+        self.type_field = Some("message".to_string());
         self
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-#[serde(untagged)]
-pub enum InputMessage<'a> {
-    TextInput(TextInput<'a>),
-    InputItemContentList(InputItemContentList<'a>),
+impl From<Item> for InputItemContentList {
+    fn from(_item: Item) -> Self {
+        Self {
+            role: Role::default(),
+            content: Vec::new(),
+            type_field: Some("message".to_string()),
+        }
+    }
 }
 
-impl<'a> From<TextInput<'a>> for InputMessage<'a> {
-    fn from(text_input: TextInput<'a>) -> Self {
+impl From<InputReference> for InputItemContentList {
+    fn from(_reference: InputReference) -> Self {
+        Self {
+            role: Role::default(),
+            content: Vec::new(),
+            type_field: Some("message".to_string()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum InputMessage {
+    TextInput(TextInput),
+    InputItemContentList(InputItemContentList),
+}
+
+impl From<TextInput> for InputMessage {
+    fn from(text_input: TextInput) -> Self {
         InputMessage::TextInput(text_input)
     }
 }
 
-impl<'a> From<InputItemContentList<'a>> for InputMessage<'a> {
-    fn from(input_item_content_list: InputItemContentList<'a>) -> Self {
-        InputMessage::InputItemContentList(input_item_content_list)
+impl From<InputItemContentList> for InputMessage {
+    fn from(content_list: InputItemContentList) -> Self {
+        InputMessage::InputItemContentList(content_list)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::openai::request::input::common::TextContent;
+    use crate::openai::request::input_models::common::TextContent;
 
     use super::*;
 

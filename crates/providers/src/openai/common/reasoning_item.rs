@@ -1,32 +1,32 @@
 use crate::openai::common::status::Status;
-use crate::openai::request::input::item::Summary;
+use crate::openai::request::input_models::item::Summary;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ReasoningItem<'a> {
-    pub id: &'a str,
-    pub summary: Vec<Summary<'a>>,
+pub struct ReasoningItem {
+    pub id: String,
+    pub summary: Vec<Summary>,
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub encrypted_content: Option<&'a str>,
+    pub encrypted_content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
 }
 
-impl<'a> ReasoningItem<'a> {
-    pub fn new(id: &'a str, summary: Vec<Summary<'a>>) -> Self {
+impl ReasoningItem {
+    pub fn new(id: impl Into<String>, summary: Vec<Summary>) -> Self {
         Self {
-            id,
+            id: id.into(),
             summary,
-            type_field: "reasoning",
+            type_field: "reasoning".to_string(),
             encrypted_content: None,
             status: None,
         }
     }
 
-    pub fn encrypted_content(mut self, value: &'a str) -> Self {
-        self.encrypted_content = Some(value);
+    pub fn encrypted_content(mut self, value: impl Into<String>) -> Self {
+        self.encrypted_content = Some(value.into());
         self
     }
 

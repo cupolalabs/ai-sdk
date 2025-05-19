@@ -61,44 +61,43 @@ impl HostedToolChoice {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct FunctionToolChoice<'a> {
-    name: &'a str,
+pub struct FunctionToolChoice {
+    name: String,
     #[serde(rename = "type")]
-    type_field: &'a str,
+    type_field: String,
 }
 
-impl<'a> FunctionToolChoice<'a> {
-    pub fn new(name: &'a str) -> Self {
+impl FunctionToolChoice {
+    pub fn new(name: impl Into<String>) -> Self {
         Self {
-            name,
-            type_field: "function",
+            name: name.into(),
+            type_field: "function".to_string(),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-pub enum ToolChoice<'a> {
+pub enum ToolChoice {
     Mode(ToolChoiceMode),
     HostedTool(HostedToolChoice),
-    FunctionTool(FunctionToolChoice<'a>),
+    FunctionTool(FunctionToolChoice),
 }
 
-impl From<ToolChoiceMode> for ToolChoice<'_> {
+impl From<ToolChoiceMode> for ToolChoice {
     fn from(tool: ToolChoiceMode) -> Self {
         ToolChoice::Mode(tool)
     }
 }
 
-impl From<HostedToolChoice> for ToolChoice<'_> {
+impl From<HostedToolChoice> for ToolChoice {
     fn from(tool: HostedToolChoice) -> Self {
         ToolChoice::HostedTool(tool)
     }
 }
 
-impl<'a> From<FunctionToolChoice<'a>> for ToolChoice<'a> {
-    fn from(tool: FunctionToolChoice<'a>) -> Self {
+impl From<FunctionToolChoice> for ToolChoice {
+    fn from(tool: FunctionToolChoice) -> Self {
         ToolChoice::FunctionTool(tool)
     }
 }
@@ -129,8 +128,8 @@ mod tests {
     fn it_builds_function_tool() {
         let result: ToolChoice = FunctionToolChoice::new("test name").into();
         let expected = ToolChoice::FunctionTool(FunctionToolChoice {
-            name: "test name",
-            type_field: "function",
+            name: "test name".to_string(),
+            type_field: "function".to_string(),
         });
 
         assert_eq!(result, expected);

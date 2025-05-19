@@ -1,20 +1,21 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct IncompleteDetails<'a> {
-    reason: &'a str,
+pub struct IncompleteDetails {
+    reason: String,
 }
 
-impl<'a> IncompleteDetails<'a> {
-    pub fn new(reason: &'a str) -> Self {
-        Self { reason }
+impl IncompleteDetails {
+    pub fn new(reason: impl Into<String>) -> Self {
+        Self {
+            reason: reason.into(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use serde_json::json;
 
     #[test]

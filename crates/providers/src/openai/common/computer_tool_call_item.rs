@@ -4,43 +4,44 @@ use crate::openai::common::status::Status;
 use crate::openai::errors::InputError;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ClickAction<'a> {
-    pub button: &'a str,
+pub struct ClickAction {
+    pub button: String,
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
     pub x: usize,
     pub y: usize,
 }
 
-impl<'a> ClickAction<'a> {
-    const BUTTON: [&'a str; 5] = ["left", "right", "wheel", "back", "forward"];
+impl ClickAction {
+    const BUTTON: [&'static str; 5] = ["left", "right", "wheel", "back", "forward"];
 
-    pub fn new(button: &'a str, x: usize, y: usize) -> Result<Self, InputError> {
-        if Self::BUTTON.contains(&button) {
+    pub fn new(button: impl Into<String>, x: usize, y: usize) -> Result<Self, InputError> {
+        let button_str = button.into();
+        if Self::BUTTON.contains(&button_str.as_str()) {
             Ok(Self {
-                button,
-                type_field: "click",
+                button: button_str,
+                type_field: "click".to_string(),
                 x,
                 y,
             })
         } else {
-            Err(InputError::InvalidButton(button.to_string()))
+            Err(InputError::InvalidButton(button_str))
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DoubleClickAction<'a> {
+pub struct DoubleClickAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
     pub x: usize,
     pub y: usize,
 }
 
-impl DoubleClickAction<'_> {
+impl DoubleClickAction {
     pub fn new(x: usize, y: usize) -> Self {
         Self {
-            type_field: "double_click",
+            type_field: "double_click".to_string(),
             x,
             y,
         }
@@ -60,49 +61,49 @@ impl DragActionPath {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DragAction<'a> {
+pub struct DragAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
     pub path: Vec<DragActionPath>,
 }
 
-impl DragAction<'_> {
+impl DragAction {
     pub fn new(path: Vec<DragActionPath>) -> Self {
         Self {
-            type_field: "drag",
+            type_field: "drag".to_string(),
             path,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct KeyPressAction<'a> {
+pub struct KeyPressAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
-    pub keys: Vec<&'a str>,
+    pub type_field: String,
+    pub keys: Vec<String>,
 }
 
-impl<'a> KeyPressAction<'a> {
-    pub fn new(keys: Vec<&'a str>) -> Self {
+impl KeyPressAction {
+    pub fn new(keys: Vec<impl Into<String>>) -> Self {
         Self {
-            type_field: "keypress",
-            keys,
+            type_field: "keypress".to_string(),
+            keys: keys.into_iter().map(|k| k.into()).collect(),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MoveAction<'a> {
+pub struct MoveAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
     pub x: usize,
     pub y: usize,
 }
 
-impl MoveAction<'_> {
+impl MoveAction {
     pub fn new(x: usize, y: usize) -> Self {
         Self {
-            type_field: "move",
+            type_field: "move".to_string(),
             x,
             y,
         }
@@ -110,39 +111,39 @@ impl MoveAction<'_> {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ScreenshotAction<'a> {
+pub struct ScreenshotAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
 }
 
-impl ScreenshotAction<'_> {
+impl ScreenshotAction {
     pub fn new() -> Self {
         Self {
-            type_field: "screenshot",
+            type_field: "screenshot".to_string(),
         }
     }
 }
 
-impl Default for ScreenshotAction<'_> {
+impl Default for ScreenshotAction {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ScrollAction<'a> {
+pub struct ScrollAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
     pub scroll_x: usize,
     pub scroll_y: usize,
     pub x: usize,
     pub y: usize,
 }
 
-impl ScrollAction<'_> {
+impl ScrollAction {
     pub fn new(scroll_x: usize, scroll_y: usize, x: usize, y: usize) -> Self {
         Self {
-            type_field: "scroll",
+            type_field: "scroll".to_string(),
             scroll_x,
             scroll_y,
             x,
@@ -152,95 +153,98 @@ impl ScrollAction<'_> {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TypeAction<'a> {
+pub struct TypeAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
-    pub text: &'a str,
+    pub type_field: String,
+    pub text: String,
 }
 
-impl<'a> TypeAction<'a> {
-    pub fn new(text: &'a str) -> Self {
+impl TypeAction {
+    pub fn new(text: impl Into<String>) -> Self {
         Self {
-            type_field: "type",
-            text,
+            type_field: "type".to_string(),
+            text: text.into(),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WaitAction<'a> {
+pub struct WaitAction {
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
 }
 
-impl WaitAction<'_> {
+impl WaitAction {
     pub fn new() -> Self {
-        Self { type_field: "wait" }
+        Self {
+            type_field: "wait".to_string(),
+        }
     }
 }
 
-impl Default for WaitAction<'_> {
+impl Default for WaitAction {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
 #[serde(untagged)]
-pub enum ComputerToolAction<'a> {
-    Click(ClickAction<'a>),
-    DoubleClick(DoubleClickAction<'a>),
-    Drag(DragAction<'a>),
-    KeyPress(KeyPressAction<'a>),
-    Move(MoveAction<'a>),
-    Screenshot(ScreenshotAction<'a>),
-    Scroll(ScrollAction<'a>),
-    Type(TypeAction<'a>),
-    Wait(WaitAction<'a>),
+pub enum ComputerToolAction {
+    Click(ClickAction),
+    DoubleClick(DoubleClickAction),
+    Drag(DragAction),
+    KeyPress(KeyPressAction),
+    Move(MoveAction),
+    Screenshot(ScreenshotAction),
+    Scroll(ScrollAction),
+    Type(TypeAction),
+    Wait(WaitAction),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub struct PendingSafetyChecks<'a> {
-    pub code: &'a str,
-    pub id: &'a str,
-    pub message: &'a str,
+pub struct PendingSafetyChecks {
+    pub code: String,
+    pub id: String,
+    pub message: String,
 }
 
-impl<'a> PendingSafetyChecks<'a> {
-    pub fn new(code: &'a str, id: &'a str, message: &'a str) -> Self {
-        Self { code, id, message }
+impl PendingSafetyChecks {
+    pub fn new(code: impl Into<String>, id: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            id: id.into(),
+            message: message.into(),
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'a"))]
-pub struct ComputerToolCallItem<'a> {
-    pub action: ComputerToolAction<'a>,
-    pub call_id: &'a str,
-    pub id: &'a str,
-    pub pending_safety_checks: Vec<PendingSafetyChecks<'a>>,
+pub struct ComputerToolCallItem {
+    pub action: ComputerToolAction,
+    pub call_id: String,
+    pub id: String,
+    pub pending_safety_checks: Vec<PendingSafetyChecks>,
     pub status: Status,
     #[serde(rename = "type")]
-    pub type_field: &'a str,
+    pub type_field: String,
 }
 
-impl<'a> ComputerToolCallItem<'a> {
+impl ComputerToolCallItem {
     pub fn new(
-        action: ComputerToolAction<'a>,
-        call_id: &'a str,
-        id: &'a str,
-        pending_safety_checks: Vec<PendingSafetyChecks<'a>>,
+        action: ComputerToolAction,
+        call_id: impl Into<String>,
+        id: impl Into<String>,
+        pending_safety_checks: Vec<PendingSafetyChecks>,
         status: Status,
     ) -> Self {
         Self {
             action,
-            call_id,
-            id,
+            call_id: call_id.into(),
+            id: id.into(),
             pending_safety_checks,
             status,
-            type_field: "computer_call",
+            type_field: "computer_call".to_string(),
         }
     }
 }

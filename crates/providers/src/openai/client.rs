@@ -1,46 +1,13 @@
-pub mod common {
-    pub mod computer_tool_call_item;
-    pub mod file_search_tool_item;
-    pub mod function_tool_call_item;
-    pub mod output_message_item;
-    pub mod reasoning;
-    pub mod reasoning_item;
-    pub mod service_tier;
-    pub mod status;
-    pub mod text;
-    pub mod tool;
-    pub mod tool_choice;
-    pub mod truncation;
-    pub mod web_search_tool_call_item;
-}
-
-pub mod constants;
-pub mod errors;
-
-pub mod response {
-    pub mod incomplete_details;
-    pub mod response_error;
-    pub mod response_output;
-    pub mod usage;
-    pub mod events {
-        pub mod streaming;
-    }
-}
-
-pub mod request {
-    pub mod include;
-    pub mod input;
-}
-
 const OPENAI_API_URL: &str = "https://api.openai.com/v1";
 
-use crate::openai::constants::OpenAIModelId;
+use crate::openai::response::events::streaming::OpenAIStreamingEvent;
 use async_trait::async_trait;
 use futures::stream::StreamExt;
-use serde::{de::DeserializeOwned, Serialize};
 use std::pin::Pin;
 use tokio_stream::Stream;
 use utils::provider::{Provider, ProviderError};
+
+use super::types::{OpenAIRequest, OpenAIResponse};
 
 pub struct OpenAIProvider {
     api_key: String,
@@ -54,6 +21,10 @@ impl OpenAIProvider {
 
 #[async_trait]
 impl Provider for OpenAIProvider {
+    type Request = OpenAIRequest;
+    type GenerateResponse = OpenAIResponse;
+    type StreamResponse = OpenAIStreamingEvent;
+
     fn get_base_url(&self) -> String {
         OPENAI_API_URL.to_string()
     }
@@ -62,10 +33,10 @@ impl Provider for OpenAIProvider {
         self.api_key.clone()
     }
 
-    async fn generate<P: Serialize + Send + Sync, R: DeserializeOwned + Send>(
+    async fn generate(
         &self,
-        request: &P,
-    ) -> Result<R, ProviderError> {
+        request: &Self::Request,
+    ) -> Result<Self::GenerateResponse, ProviderError> {
         let client = reqwest::Client::new();
         let url = format!("{}/responses", self.get_base_url());
 
@@ -91,16 +62,22 @@ impl Provider for OpenAIProvider {
             });
         }
 
-        response
-            .json::<R>()
+        let response_bytes = response
+            .bytes()
             .await
+            .map_err(|e| ProviderError::NetworkError(e.to_string()))?;
+
+        serde_json::from_slice(&response_bytes)
             .map_err(|e| ProviderError::DeserializationError(e.to_string()))
     }
 
-    async fn stream<P: Serialize + Send + Sync, R: DeserializeOwned + Send>(
+    async fn stream(
         &self,
-        request: &P,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<R, ProviderError>> + Send>>, ProviderError> {
+        request: &Self::Request,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Self::StreamResponse, ProviderError>> + Send>>,
+        ProviderError,
+    > {
         let client = reqwest::Client::new();
         let url = format!("{}/responses", self.get_base_url());
 
@@ -128,13 +105,13 @@ impl Provider for OpenAIProvider {
         }
 
         let stream = response.bytes_stream();
-
-        let parsed_stream = stream.map(|chunk_result| match chunk_result {
-            Ok(chunk) => match serde_json::from_slice::<R>(&chunk) {
-                Ok(parsed) => Ok(parsed),
-                Err(e) => Err(ProviderError::DeserializationError(e.to_string())),
-            },
-            Err(e) => Err(ProviderError::NetworkError(e.to_string())),
+        let parsed_stream = stream.map(|chunk_result| {
+            chunk_result
+                .map_err(|e| ProviderError::NetworkError(e.to_string()))
+                .and_then(|chunk| {
+                    serde_json::from_slice(&chunk)
+                        .map_err(|e| ProviderError::DeserializationError(e.to_string()))
+                })
         });
 
         Ok(Box::pin(parsed_stream))
