@@ -1,5 +1,4 @@
-const OPENAI_API_URL: &str = "https://api.openai.com/v1";
-
+use crate::openai::constants::OPENAI_API_URL;
 use crate::openai::response::events::streaming::OpenAIStreamingEvent;
 use async_trait::async_trait;
 use futures::stream::StreamExt;
