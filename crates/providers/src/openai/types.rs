@@ -12,6 +12,8 @@ use crate::openai::response::{
     response_output::ResponseOutput, usage::Usage,
 };
 
+use serde_json::{json, Value};
+
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct OpenAIRequest {
     input: Input,
@@ -34,8 +36,6 @@ pub struct OpenAIRequest {
     service_tier: Option<ServiceTier>,
     #[serde(skip_serializing_if = "Option::is_none")]
     store: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -122,11 +122,6 @@ impl OpenAIRequest {
         self
     }
 
-    pub fn stream(mut self) -> Self {
-        self.stream = Some(true);
-        self
-    }
-
     pub fn temperature(mut self, value: f32) -> Self {
         self.temperature = Some(value);
         self
@@ -163,6 +158,32 @@ impl OpenAIRequest {
     pub fn user(mut self, value: impl Into<String>) -> Self {
         self.user = Some(value.into());
         self
+    }
+
+    pub fn wrap_for_streaming<'a>(&'a self) -> impl Serialize + 'a {
+        struct Wrapper<'a> {
+            inner: &'a OpenAIRequest,
+        }
+
+        impl<'a> Serialize for Wrapper<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let mut original = serde_json::to_value(self.inner)
+                    .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+
+                if let Value::Object(ref mut map) = original {
+                    map.insert("stream".to_string(), json!(true));
+
+                    map.serialize(serializer)
+                } else {
+                    Err(serde::ser::Error::custom("Expected object"))
+                }
+            }
+        }
+
+        Wrapper { inner: self }
     }
 }
 
