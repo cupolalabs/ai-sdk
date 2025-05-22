@@ -60,21 +60,22 @@ impl std::error::Error for ProviderError {
 /// Each provider must implement methods to get the base URL and API key for their specific service.
 #[async_trait]
 pub trait Provider {
-    type Request: Serialize + Send + Sync;
-    type GenerateResponse: for<'de> Deserialize<'de> + Send;
-    type StreamResponse: for<'de> Deserialize<'de> + Send;
+    type GenerationRequest: Serialize + Send + Sync;
+    type StreamingRequest: Serialize + Send + Sync;
+    type GenerationResponse: for<'de> Deserialize<'de> + Send;
+    type StreamingResponse: for<'de> Deserialize<'de> + Send;
 
     fn get_base_url(&self) -> String;
     fn get_api_key(&self) -> String;
     async fn generate(
         &self,
-        request: &Self::Request,
-    ) -> Result<Self::GenerateResponse, ProviderError>;
+        request: &Self::GenerationRequest,
+    ) -> Result<Self::GenerationResponse, ProviderError>;
     async fn stream(
         &self,
-        request: &Self::Request,
+        request: &Self::StreamingRequest,
     ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<Self::StreamResponse, ProviderError>> + Send>>,
+        Pin<Box<dyn Stream<Item = Result<Self::StreamingResponse, ProviderError>> + Send>>,
         ProviderError,
     >;
 }

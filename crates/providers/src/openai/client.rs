@@ -20,9 +20,10 @@ impl OpenAIProvider {
 
 #[async_trait]
 impl Provider for OpenAIProvider {
-    type Request = OpenAIRequest;
-    type GenerateResponse = OpenAIResponse;
-    type StreamResponse = OpenAIStreamingEvent;
+    type GenerationRequest = OpenAIRequest;
+    type StreamingRequest = OpenAIRequest;
+    type GenerationResponse = OpenAIResponse;
+    type StreamingResponse = OpenAIStreamingEvent;
 
     fn get_base_url(&self) -> String {
         OPENAI_API_URL.to_string()
@@ -34,8 +35,8 @@ impl Provider for OpenAIProvider {
 
     async fn generate(
         &self,
-        request: &Self::Request,
-    ) -> Result<Self::GenerateResponse, ProviderError> {
+        request: &Self::GenerationRequest,
+    ) -> Result<Self::GenerationResponse, ProviderError> {
         let client = reqwest::Client::new();
         let url = format!("{}/responses", self.get_base_url());
 
@@ -72,9 +73,9 @@ impl Provider for OpenAIProvider {
 
     async fn stream(
         &self,
-        request: &Self::Request,
+        request: &Self::StreamingRequest,
     ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<Self::StreamResponse, ProviderError>> + Send>>,
+        Pin<Box<dyn Stream<Item = Result<Self::StreamingResponse, ProviderError>> + Send>>,
         ProviderError,
     > {
         let client = reqwest::Client::new();
@@ -85,7 +86,7 @@ impl Provider for OpenAIProvider {
             .header("Authorization", format!("Bearer {}", self.get_api_key()))
             .header("Content-Type", "application/json")
             .header("Accept", "text/event-stream")
-            .json(request)
+            .json(&request.wrap_for_streaming())
             .send()
             .await
             .map_err(|e| ProviderError::NetworkError(e.to_string()))?;
