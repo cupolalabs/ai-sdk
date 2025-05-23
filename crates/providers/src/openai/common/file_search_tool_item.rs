@@ -63,7 +63,6 @@ pub struct FileSearchToolCallItem {
     pub queries: Vec<String>,
     pub status: Status,
     #[serde(rename = "type")]
-    pub type_field: String,
     pub results: Vec<FileSearchToolCallResult>,
 }
 
@@ -73,7 +72,6 @@ impl FileSearchToolCallItem {
             id: id.into(),
             queries: vec![],
             status: Status::from_str(status.as_ref())?,
-            type_field: "file_search_call".to_string(),
             results: vec![],
         })
     }

@@ -127,8 +127,6 @@ pub struct OutputMessageItem {
     pub id: String,
     pub role: Role,
     pub status: Status,
-    #[serde(rename = "type")]
-    pub type_field: String,
 }
 
 impl OutputMessageItem {
@@ -138,7 +136,6 @@ impl OutputMessageItem {
             id: id.into(),
             role: Role::Assistant,
             status: Status::from_str(status.as_ref())?,
-            type_field: "message".to_string(),
         })
     }
 }

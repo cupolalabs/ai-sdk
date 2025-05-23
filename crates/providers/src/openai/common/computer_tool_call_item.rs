@@ -226,8 +226,6 @@ pub struct ComputerToolCallItem {
     pub id: String,
     pub pending_safety_checks: Vec<PendingSafetyChecks>,
     pub status: Status,
-    #[serde(rename = "type")]
-    pub type_field: String,
 }
 
 impl ComputerToolCallItem {
@@ -244,7 +242,6 @@ impl ComputerToolCallItem {
             id: id.into(),
             pending_safety_checks,
             status,
-            type_field: "computer_call".to_string(),
         }
     }
 }

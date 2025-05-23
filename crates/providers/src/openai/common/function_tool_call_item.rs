@@ -7,8 +7,6 @@ pub struct FunctionToolCallItem {
     pub arguments: String,
     pub call_id: String,
     pub name: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,7 +23,6 @@ impl FunctionToolCallItem {
             arguments: arguments.into(),
             call_id: call_id.into(),
             name: name.into(),
-            type_field: "function_call".to_string(),
             id: None,
             status: None,
         }

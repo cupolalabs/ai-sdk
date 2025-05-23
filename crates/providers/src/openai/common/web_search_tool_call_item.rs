@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct WebSearchToolCallItem {
     pub id: String,
     pub status: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
 }
 
 impl WebSearchToolCallItem {
@@ -13,7 +11,6 @@ impl WebSearchToolCallItem {
         Self {
             id: id.into(),
             status: status.into(),
-            type_field: "web_search_call".to_string(),
         }
     }
 }

@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 pub struct ReasoningItem {
     pub id: String,
     pub summary: Vec<Summary>,
-    #[serde(rename = "type")]
-    pub type_field: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encrypted_content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,7 +17,6 @@ impl ReasoningItem {
         Self {
             id: id.into(),
             summary,
-            type_field: "reasoning".to_string(),
             encrypted_content: None,
             status: None,
         }
