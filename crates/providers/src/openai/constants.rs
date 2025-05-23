@@ -4,7 +4,7 @@ use std::str::FromStr;
 pub const OPENAI_API_URL: &str = "https://api.openai.com/v1";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(into = "String", try_from = "&str")]
 pub enum OpenAIModelId {
     Gpt4,
     Gpt4Turbo,
@@ -147,8 +147,24 @@ impl OpenAIModelId {
     }
 }
 
+impl Into<String> for OpenAIModelId {
+    fn into(self) -> String {
+        self.as_str().to_string()
+    }
+}
+
+impl TryFrom<&str> for OpenAIModelId {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value
+            .parse()
+            .map_err(|_| format!("Unknown OpenAI model: {}", value))
+    }
+}
+
 impl FromStr for OpenAIModelId {
-    type Err = ();
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -158,31 +174,31 @@ impl FromStr for OpenAIModelId {
             "gpt-4-0125-preview" => Ok(Self::Gpt4_0125Preview),
             "gpt-4-1106-preview" => Ok(Self::Gpt4_1106Preview),
             "gpt-4-0613" => Ok(Self::Gpt4_0613),
-            "gpt-4-o" => Ok(Self::Gpt4O),
-            "gpt-4-o-2024-05-13" => Ok(Self::Gpt4O2024_05_13),
-            "gpt-4-o-2024-08-06" => Ok(Self::Gpt4O2024_08_06),
-            "gpt-4-o-2024-11-20" => Ok(Self::Gpt4O2024_11_20),
-            "gpt-4-o-realtime-preview" => Ok(Self::Gpt4ORealtimePreview),
-            "gpt-4-o-realtime-preview-2024-10-01" => Ok(Self::Gpt4ORealtimePreview2024_10_01),
-            "gpt-4-o-realtime-preview-2024-12-17" => Ok(Self::Gpt4ORealtimePreview2024_12_17),
-            "gpt-4-o-audio-preview" => Ok(Self::Gpt4OAudioPreview),
-            "gpt-4-o-audio-preview-2024-10-01" => Ok(Self::Gpt4OAudioPreview2024_10_01),
-            "gpt-4-o-audio-preview-2024-12-17" => Ok(Self::Gpt4OAudioPreview2024_12_17),
-            "gpt-4-o-mini" => Ok(Self::Gpt4OMini),
-            "gpt-4-o-mini-2024-07-18" => Ok(Self::Gpt4OMini2024_07_18),
-            "gpt-4-o-mini-realtime-preview" => Ok(Self::Gpt4OMiniRealtimePreview),
-            "gpt-4-o-mini-realtime-preview-2024-12-17" => {
+            "gpt-4o" => Ok(Self::Gpt4O),
+            "gpt-4o-2024-05-13" => Ok(Self::Gpt4O2024_05_13),
+            "gpt-4o-2024-08-06" => Ok(Self::Gpt4O2024_08_06),
+            "gpt-4o-2024-11-20" => Ok(Self::Gpt4O2024_11_20),
+            "gpt-4o-realtime-preview" => Ok(Self::Gpt4ORealtimePreview),
+            "gpt-4o-realtime-preview-2024-10-01" => Ok(Self::Gpt4ORealtimePreview2024_10_01),
+            "gpt-4o-realtime-preview-2024-12-17" => Ok(Self::Gpt4ORealtimePreview2024_12_17),
+            "gpt-4o-audio-preview" => Ok(Self::Gpt4OAudioPreview),
+            "gpt-4o-audio-preview-2024-10-01" => Ok(Self::Gpt4OAudioPreview2024_10_01),
+            "gpt-4o-audio-preview-2024-12-17" => Ok(Self::Gpt4OAudioPreview2024_12_17),
+            "gpt-4o-mini" => Ok(Self::Gpt4OMini),
+            "gpt-4o-mini-2024-07-18" => Ok(Self::Gpt4OMini2024_07_18),
+            "gpt-4o-mini-realtime-preview" => Ok(Self::Gpt4OMiniRealtimePreview),
+            "gpt-4o-mini-realtime-preview-2024-12-17" => {
                 Ok(Self::Gpt4OMiniRealtimePreview2024_12_17)
             }
-            "gpt-4-o-mini-audio-preview" => Ok(Self::Gpt4OMiniAudioPreview),
-            "gpt-4-o-mini-audio-preview-2024-12-17" => Ok(Self::Gpt4OMiniAudioPreview2024_12_17),
-            "gpt-4-o-mini-search-preview" => Ok(Self::Gpt4OMiniSearchPreview),
-            "gpt-4-o-mini-search-preview-2025-03-11" => Ok(Self::Gpt4OMiniSearchPreview2025_03_11),
-            "gpt-4-o-search-preview" => Ok(Self::Gpt4OSearchPreview),
-            "gpt-4-o-search-preview-2025-03-11" => Ok(Self::Gpt4OSearchPreview2025_03_11),
-            "gpt-4-o-mini-tts" => Ok(Self::Gpt4OMiniTts),
-            "gpt-4-o-transcribe" => Ok(Self::Gpt4OTranscribe),
-            "gpt-4-o-mini-transcribe" => Ok(Self::Gpt4OMiniTranscribe),
+            "gpt-4o-mini-audio-preview" => Ok(Self::Gpt4OMiniAudioPreview),
+            "gpt-4o-mini-audio-preview-2024-12-17" => Ok(Self::Gpt4OMiniAudioPreview2024_12_17),
+            "gpt-4o-mini-search-preview" => Ok(Self::Gpt4OMiniSearchPreview),
+            "gpt-4o-mini-search-preview-2025-03-11" => Ok(Self::Gpt4OMiniSearchPreview2025_03_11),
+            "gpt-4o-search-preview" => Ok(Self::Gpt4OSearchPreview),
+            "gpt-4o-search-preview-2025-03-11" => Ok(Self::Gpt4OSearchPreview2025_03_11),
+            "gpt-4o-mini-tts" => Ok(Self::Gpt4OMiniTts),
+            "gpt-4o-transcribe" => Ok(Self::Gpt4OTranscribe),
+            "gpt-4o-mini-transcribe" => Ok(Self::Gpt4OMiniTranscribe),
             "gpt-4.5-preview" => Ok(Self::Gpt4_5Preview),
             "gpt-4.5-preview-2025-02-27" => Ok(Self::Gpt4_5Preview2025_02_27),
             "gpt-4.1" => Ok(Self::Gpt4_1),
@@ -217,7 +233,7 @@ impl FromStr for OpenAIModelId {
             "omni-moderation-latest" => Ok(Self::OmniModerationLatest),
             "omni-moderation-2024-09-26" => Ok(Self::OmniModeration2024_09_26),
             "codex-mini-latest" => Ok(Self::CodexMiniLatest),
-            _ => Err(()),
+            _ => Err(format!("Unknown OpenAI model: {}", s)),
         }
     }
 }
