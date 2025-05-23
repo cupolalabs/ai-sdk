@@ -1,3 +1,7 @@
+pub use openai::client::OpenAIProvider;
+pub use openai::types::{OpenAIRequest, OpenAIResponse};
+pub use utils::provider::Provider;
+
 pub mod openai {
     pub mod client;
     pub mod constants;
