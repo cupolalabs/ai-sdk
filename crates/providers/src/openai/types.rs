@@ -224,5 +224,6 @@ pub struct OpenAIResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     truncation: Option<Truncation>,
     usage: Usage,
-    user: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user: Option<String>,
 }
