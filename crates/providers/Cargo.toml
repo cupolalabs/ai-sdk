@@ -7,7 +7,7 @@ license = "MIT"
 repository = "https://github.com/cupolalabs/ai-sdk"
 homepage = "https://github.com/cupolalabs/ai-sdk"
 readme = "../../README.md"
-keywords = ["AI", "providers", "openai", "gemini", "claude", "gpt"]
+keywords = ["AI", "providers", "openai", "api", "sdk"]
 categories = ["api-bindings"]
 publish = true
 
