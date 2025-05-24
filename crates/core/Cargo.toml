@@ -1,6 +1,6 @@
 [package]
 name = "ai-sdk"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 description = "A modular and composable AI SDK built in Rust."
 license = "MIT"
@@ -8,9 +8,8 @@ repository = "https://github.com/cupolalabs/ai-sdk"
 homepage = "https://github.com/cupolalabs/ai-sdk"
 readme = "../../README.md"
 keywords = ["AI", "SDK"]
-categories = ["api-bindings", "sdk"]
+categories = ["api-bindings", "sdk", "ai", "openai", "claude", "gemini"]
 publish = true
 
 [dependencies]
-providers = { path = "../providers" }
-utils = { path = "../utils" }
+ai-providers.workspace = true
