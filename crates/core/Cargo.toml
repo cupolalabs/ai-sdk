@@ -8,8 +8,8 @@ repository = "https://github.com/cupolalabs/ai-sdk"
 homepage = "https://github.com/cupolalabs/ai-sdk"
 readme = "../../README.md"
 keywords = ["AI", "SDK"]
-categories = ["api-bindings", "sdk", "ai", "openai", "claude", "gemini"]
+categories = ["api-bindings", "science"]
 publish = true
 
 [dependencies]
-ai-providers.workspace = true
+ai-providers = "0.0.1"
