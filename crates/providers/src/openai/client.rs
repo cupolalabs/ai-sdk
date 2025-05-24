@@ -1,10 +1,10 @@
 use crate::openai::constants::OPENAI_API_URL;
 use crate::openai::response::events::streaming::OpenAIStreamingEvent;
+use crate::utils::{errors::ProviderError, provider_strategy::ProviderStrategy};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use std::pin::Pin;
 use tokio_stream::Stream;
-use utils::provider::{Provider, ProviderError};
 
 use super::types::{OpenAIRequest, OpenAIResponse};
 
@@ -19,7 +19,7 @@ impl OpenAIProvider {
 }
 
 #[async_trait]
-impl Provider for OpenAIProvider {
+impl ProviderStrategy for OpenAIProvider {
     type GenerationRequest = OpenAIRequest;
     type StreamingRequest = OpenAIRequest;
     type GenerationResponse = OpenAIResponse;

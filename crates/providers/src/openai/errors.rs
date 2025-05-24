@@ -25,6 +25,7 @@ pub enum InputError {
     InvalidRole(String),
     InvalidButton(String),
     ConversionError(ConversionError),
+    InvalidModelId(String),
 }
 
 impl Display for InputError {
@@ -42,6 +43,7 @@ impl Display for InputError {
                 write!(f, "Invalid button value: {}", msg)
             }
             InputError::ConversionError(err) => write!(f, "Conversion error: {}", err),
+            InputError::InvalidModelId(err) => write!(f, "Invalid model id: {}", err),
         }
     }
 }

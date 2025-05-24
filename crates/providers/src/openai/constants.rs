@@ -1,3 +1,4 @@
+use crate::openai::errors::InputError;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -73,7 +74,7 @@ pub enum OpenAIModelId {
 
 impl Default for OpenAIModelId {
     fn default() -> Self {
-        Self::Gpt4O
+        Self::Gpt3_5Turbo
     }
 }
 
@@ -147,24 +148,22 @@ impl OpenAIModelId {
     }
 }
 
-impl Into<String> for OpenAIModelId {
-    fn into(self) -> String {
-        self.as_str().to_string()
+impl TryFrom<&str> for OpenAIModelId {
+    type Error = InputError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        OpenAIModelId::from_str(value)
     }
 }
 
-impl TryFrom<&str> for OpenAIModelId {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        value
-            .parse()
-            .map_err(|_| format!("Unknown OpenAI model: {}", value))
+impl From<OpenAIModelId> for String {
+    fn from(value: OpenAIModelId) -> Self {
+        value.as_str().to_string()
     }
 }
 
 impl FromStr for OpenAIModelId {
-    type Err = String;
+    type Err = InputError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -233,7 +232,7 @@ impl FromStr for OpenAIModelId {
             "omni-moderation-latest" => Ok(Self::OmniModerationLatest),
             "omni-moderation-2024-09-26" => Ok(Self::OmniModeration2024_09_26),
             "codex-mini-latest" => Ok(Self::CodexMiniLatest),
-            _ => Err(format!("Unknown OpenAI model: {}", s)),
+            _ => Err(InputError::InvalidModelId(s.to_string())),
         }
     }
 }

@@ -1,6 +1,6 @@
+pub use crate::utils::provider_strategy::ProviderStrategy;
 pub use openai::client::OpenAIProvider;
 pub use openai::types::{OpenAIRequest, OpenAIResponse};
-pub use utils::provider::Provider;
 
 pub mod openai {
     pub mod client;
@@ -41,4 +41,9 @@ pub mod openai {
             pub mod streaming;
         }
     }
+}
+
+pub mod utils {
+    pub mod errors;
+    pub mod provider_strategy;
 }
