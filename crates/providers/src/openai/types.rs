@@ -160,12 +160,12 @@ impl OpenAIRequest {
         self
     }
 
-    pub fn wrap_for_streaming<'a>(&'a self) -> impl Serialize + 'a {
+    pub fn wrap_for_streaming(&self) -> impl Serialize + '_ {
         struct Wrapper<'a> {
             inner: &'a OpenAIRequest,
         }
 
-        impl<'a> Serialize for Wrapper<'a> {
+        impl Serialize for Wrapper<'_> {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
