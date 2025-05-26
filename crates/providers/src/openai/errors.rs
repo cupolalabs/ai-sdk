@@ -23,7 +23,7 @@ impl Error for ConversionError {}
 pub enum InputError {
     InvalidToolType(String),
     InvalidRole(String),
-    InvalidButton(String),
+    InvalidButtonForClickAction(String),
     ConversionError(ConversionError),
     InvalidModelId(String),
 }
@@ -39,8 +39,8 @@ impl Display for InputError {
                     msg
                 )
             }
-            InputError::InvalidButton(msg) => {
-                write!(f, "Invalid button value: {}", msg)
+            InputError::InvalidButtonForClickAction(msg) => {
+                write!(f, "Invalid button value for click action: {}", msg)
             }
             InputError::ConversionError(err) => write!(f, "Conversion error: {}", err),
             InputError::InvalidModelId(err) => write!(f, "Invalid model id: {}", err),

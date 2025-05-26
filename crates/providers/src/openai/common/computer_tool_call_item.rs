@@ -4,54 +4,9 @@ use crate::openai::common::status::Status;
 use crate::openai::errors::InputError;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ClickAction {
-    pub button: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub x: usize,
-    pub y: usize,
-}
-
-impl ClickAction {
-    const BUTTON: [&'static str; 5] = ["left", "right", "wheel", "back", "forward"];
-
-    pub fn new(button: impl Into<String>, x: usize, y: usize) -> Result<Self, InputError> {
-        let button_str = button.into();
-        if Self::BUTTON.contains(&button_str.as_str()) {
-            Ok(Self {
-                button: button_str,
-                type_field: "click".to_string(),
-                x,
-                y,
-            })
-        } else {
-            Err(InputError::InvalidButton(button_str))
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DoubleClickAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub x: usize,
-    pub y: usize,
-}
-
-impl DoubleClickAction {
-    pub fn new(x: usize, y: usize) -> Self {
-        Self {
-            type_field: "double_click".to_string(),
-            x,
-            y,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DragActionPath {
-    pub x: usize,
-    pub y: usize,
+    x: usize,
+    y: usize,
 }
 
 impl DragActionPath {
@@ -61,145 +16,85 @@ impl DragActionPath {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DragAction {
+#[serde(tag = "type")]
+pub enum ComputerToolAction {
+    #[serde(rename = "click")]
+    Click { button: String, x: usize, y: usize },
+    #[serde(rename = "double_click")]
+    DoubleClick { x: usize, y: usize },
+    #[serde(rename = "drag")]
+    Drag { path: Vec<DragActionPath> },
+    #[serde(rename = "keypress")]
+    KeyPress { keys: Vec<String> },
+    #[serde(rename = "move")]
+    Move { x: usize, y: usize },
+    #[serde(rename = "screenshot")]
+    Screenshot,
+    #[serde(rename = "scroll")]
+    Scroll {
+        scroll_x: usize,
+        scroll_y: usize,
+        x: usize,
+        y: usize,
+    },
     #[serde(rename = "type")]
-    pub type_field: String,
-    pub path: Vec<DragActionPath>,
+    Type { text: String },
+    #[serde(rename = "wait")]
+    Wait,
 }
 
-impl DragAction {
-    pub fn new(path: Vec<DragActionPath>) -> Self {
-        Self {
-            type_field: "drag".to_string(),
-            path,
+impl ComputerToolAction {
+    const BUTTON: [&'static str; 5] = ["left", "right", "wheel", "back", "forward"];
+
+    pub fn click(button: impl Into<String>, x: usize, y: usize) -> Result<Self, InputError> {
+        let button_str = button.into();
+        if Self::BUTTON.contains(&button_str.as_str()) {
+            Ok(Self::Click {
+                button: button_str,
+                x,
+                y,
+            })
+        } else {
+            Err(InputError::InvalidButtonForClickAction(button_str))
         }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct KeyPressAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub keys: Vec<String>,
-}
-
-impl KeyPressAction {
-    pub fn new(keys: Vec<impl Into<String>>) -> Self {
-        Self {
-            type_field: "keypress".to_string(),
-            keys: keys.into_iter().map(|k| k.into()).collect(),
-        }
+    pub fn double_click(x: usize, y: usize) -> Self {
+        Self::DoubleClick { x, y }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MoveAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub x: usize,
-    pub y: usize,
-}
-
-impl MoveAction {
-    pub fn new(x: usize, y: usize) -> Self {
-        Self {
-            type_field: "move".to_string(),
-            x,
-            y,
-        }
+    pub fn drag(path: Vec<DragActionPath>) -> Self {
+        Self::Drag { path }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ScreenshotAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-}
-
-impl ScreenshotAction {
-    pub fn new() -> Self {
-        Self {
-            type_field: "screenshot".to_string(),
-        }
+    pub fn keypress(keys: Vec<String>) -> Self {
+        Self::KeyPress { keys }
     }
-}
 
-impl Default for ScreenshotAction {
-    fn default() -> Self {
-        Self::new()
+    pub fn move_action(x: usize, y: usize) -> Self {
+        Self::Move { x, y }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ScrollAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub scroll_x: usize,
-    pub scroll_y: usize,
-    pub x: usize,
-    pub y: usize,
-}
+    pub fn screenshot() -> Self {
+        Self::Screenshot
+    }
 
-impl ScrollAction {
-    pub fn new(scroll_x: usize, scroll_y: usize, x: usize, y: usize) -> Self {
-        Self {
-            type_field: "scroll".to_string(),
+    pub fn scroll(scroll_x: usize, scroll_y: usize, x: usize, y: usize) -> Self {
+        Self::Scroll {
             scroll_x,
             scroll_y,
             x,
             y,
         }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TypeAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub text: String,
-}
-
-impl TypeAction {
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            type_field: "type".to_string(),
-            text: text.into(),
-        }
+    pub fn type_action(text: String) -> Self {
+        Self::Type { text }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WaitAction {
-    #[serde(rename = "type")]
-    pub type_field: String,
-}
-
-impl WaitAction {
-    pub fn new() -> Self {
-        Self {
-            type_field: "wait".to_string(),
-        }
+    pub fn wait() -> Self {
+        Self::Wait
     }
-}
-
-impl Default for WaitAction {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ComputerToolAction {
-    Click(ClickAction),
-    DoubleClick(DoubleClickAction),
-    Drag(DragAction),
-    KeyPress(KeyPressAction),
-    Move(MoveAction),
-    Screenshot(ScreenshotAction),
-    Scroll(ScrollAction),
-    Type(TypeAction),
-    Wait(WaitAction),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -242,6 +137,85 @@ impl ComputerToolCallItem {
             id: id.into(),
             pending_safety_checks,
             status,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn it_builds_computer_tool_action() {
+        let actions: Vec<ComputerToolAction> = vec![
+            ComputerToolAction::click("left", 64, 64).unwrap(),
+            ComputerToolAction::double_click(64, 64),
+            ComputerToolAction::drag(vec![
+                DragActionPath::new(64, 64),
+                DragActionPath::new(128, 128),
+            ]),
+            ComputerToolAction::keypress(vec!["Alt".into(), "Ctrl".into()]),
+            ComputerToolAction::move_action(64, 64),
+            ComputerToolAction::screenshot(),
+            ComputerToolAction::scroll(64, 64, 64, 64),
+            ComputerToolAction::type_action("action".into()),
+            ComputerToolAction::wait(),
+        ];
+
+        let expected = vec![
+            json!({
+                "type": "click",
+                "button": "left",
+                "x": 64,
+                "y": 64,
+            }),
+            json!({
+                "type": "double_click",
+                "x": 64,
+                "y": 64,
+            }),
+            json!({
+                "type": "drag",
+                "path": [
+                    { "x": 64, "y": 64 },
+                    { "x": 128, "y": 128 }
+                ]
+            }),
+            json!({
+                "type": "keypress",
+                "keys": ["Alt", "Ctrl"]
+            }),
+            json!({
+                "type": "move",
+                "x": 64,
+                "y": 64
+            }),
+            json!({
+                "type": "screenshot"
+            }),
+            json!({
+                "type": "scroll",
+                "scroll_x": 64,
+                "scroll_y": 64,
+                "x": 64,
+                "y": 64,
+            }),
+            json!({
+                "type": "type",
+                "text": "action"
+            }),
+            json!({
+                "type": "wait"
+            }),
+        ];
+
+        for (index, computer_tool_action) in actions.iter().enumerate() {
+            assert_eq!(
+                serde_json::to_value(computer_tool_action).unwrap(),
+                expected[index]
+            );
         }
     }
 }
