@@ -38,3 +38,27 @@ impl FunctionToolCallItem {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn it_builds_function_tool_call_item() {
+        let item = FunctionToolCallItem::new("test-arguments", "test-id", "test-name")
+            .id("test-id")
+            .status(Status::Completed);
+
+        let expected = json!({
+            "arguments": "test-arguments",
+            "call_id": "test-id",
+            "name": "test-name",
+            "id": "test-id",
+            "status": "completed"
+        });
+
+        assert_eq!(serde_json::to_value(item).unwrap(), expected);
+    }
+}

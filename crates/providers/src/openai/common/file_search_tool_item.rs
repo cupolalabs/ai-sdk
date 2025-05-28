@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::str::FromStr;
 
 use crate::openai::common::status::Status;
-use crate::openai::errors::ConversionError;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct FileSearchToolCallResult {
@@ -62,27 +60,58 @@ pub struct FileSearchToolCallItem {
     pub id: String,
     pub queries: Vec<String>,
     pub status: Status,
-    #[serde(rename = "type")]
     pub results: Vec<FileSearchToolCallResult>,
 }
 
 impl FileSearchToolCallItem {
-    pub fn new(id: impl Into<String>, status: impl AsRef<str>) -> Result<Self, ConversionError> {
-        Ok(Self {
+    pub fn new(
+        id: impl Into<String>,
+        queries: Vec<String>,
+        status: Status,
+        results: Vec<FileSearchToolCallResult>,
+    ) -> Self {
+        Self {
             id: id.into(),
-            queries: vec![],
-            status: Status::from_str(status.as_ref())?,
-            results: vec![],
-        })
+            queries,
+            status,
+            results,
+        }
     }
+}
 
-    pub fn extend_queries(mut self, queries: Vec<impl Into<String>>) -> Self {
-        self.queries.extend(queries.into_iter().map(|q| q.into()));
-        self
-    }
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
 
-    pub fn extend_results(mut self, results: Vec<FileSearchToolCallResult>) -> Self {
-        self.results.extend(results);
-        self
+    use super::*;
+
+    #[test]
+    fn it_builds_file_search_tool_call_item() {
+        let item = FileSearchToolCallItem::new(
+            "test-id".to_string(),
+            vec!["test-query-1".to_string(), "test-query-2".to_string()],
+            Status::InProgress,
+            vec![FileSearchToolCallResult::new()
+                .file_id("file-id")
+                .filename("filename")
+                .score(5)
+                .insert_attribute("location".to_string(), "heaven".to_string())],
+        );
+
+        let expected = json!({
+            "id": "test-id",
+            "queries": ["test-query-1", "test-query-2"],
+            "status": "in_progress",
+            "results": [
+                {
+                    "attributes": { "location": "heaven" },
+                    "file_id": "file-id",
+                    "filename": "filename",
+                    "score": 5
+                }
+            ]
+        });
+
+        assert_eq!(serde_json::to_value(item).unwrap(), expected);
     }
 }

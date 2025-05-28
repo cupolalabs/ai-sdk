@@ -1,5 +1,6 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
+use futures::stream::All;
 use serde::{Deserialize, Serialize};
 
 use crate::openai::errors::ConversionError;
@@ -28,6 +29,12 @@ impl FromStr for ComparisonOperator {
             "lte" => Ok(ComparisonOperator::Lte),
             _ => Err(ConversionError::FromStr(s.to_string())),
         }
+    }
+}
+
+impl From<&str> for ComparisonOperator {
+    fn from(s: &str) -> Self {
+        Self::from_str(s).unwrap()
     }
 }
 
@@ -78,28 +85,6 @@ impl From<f64> for FilterValue {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct ComparisonFilter {
-    key: String,
-    #[serde(rename = "type")]
-    type_field: ComparisonOperator,
-    value: FilterValue,
-}
-
-impl ComparisonFilter {
-    pub fn build<V: Into<FilterValue>>(
-        key: impl Into<String>,
-        comparison_operator: impl AsRef<str>,
-        value: V,
-    ) -> Self {
-        Self {
-            key: key.into(),
-            type_field: ComparisonOperator::from_str(comparison_operator.as_ref()).unwrap(),
-            value: value.into(),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CompoundOperator {
     And,
@@ -118,47 +103,53 @@ impl FromStr for CompoundOperator {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompoundFilter {
-    filters: Vec<FileSearchFilter>,
-    #[serde(rename = "type")]
-    type_field: CompoundOperator,
-}
-
-impl CompoundFilter {
-    pub fn build(filters: Vec<FileSearchFilter>, compound_operator: impl AsRef<str>) -> Self {
-        Self {
-            filters,
-            type_field: CompoundOperator::from_str(compound_operator.as_ref()).unwrap(),
-        }
+impl From<&str> for CompoundOperator {
+    fn from(s: &str) -> Self {
+        Self::from_str(s).unwrap()
     }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FileSearchFilter {
-    Comparison(ComparisonFilter),
-    Compound(CompoundFilter),
+    Comparison {
+        key: String,
+        #[serde(rename = "type")]
+        type_field: ComparisonOperator,
+        value: FilterValue,
+    },
+    Compound {
+        filters: Vec<FileSearchFilter>,
+        #[serde(rename = "type")]
+        type_field: CompoundOperator,
+    },
 }
 
 impl FileSearchFilter {
-    pub fn build_comparison_filter<V: Into<FilterValue>>(
+    pub fn comparison<V: Into<FilterValue>>(
         key: impl Into<String>,
         comparison_operator: impl AsRef<str>,
         value: V,
-    ) -> Self {
-        Self::Comparison(ComparisonFilter::build(key, comparison_operator, value))
+    ) -> Result<Self, ConversionError> {
+        Ok(Self::Comparison {
+            key: key.into(),
+            type_field: ComparisonOperator::from_str(comparison_operator.as_ref())?,
+            value: value.into(),
+        })
     }
 
-    pub fn build_compound_filter(
+    pub fn compound(
         filters: Vec<FileSearchFilter>,
         compound_operator: impl AsRef<str>,
-    ) -> Self {
-        Self::Compound(CompoundFilter::build(filters, compound_operator))
+    ) -> Result<Self, ConversionError> {
+        Ok(Self::Compound {
+            filters,
+            type_field: CompoundOperator::from_str(compound_operator.as_ref())?,
+        })
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RankingOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     ranker: Option<String>,
@@ -180,21 +171,13 @@ impl RankingOptions {
     }
 
     pub fn score_threshold(mut self, value: f32) -> Self {
-        self.score_threshold = Some(value);
+        self.score_threshold = Some(value.into());
         self
-    }
-}
-
-impl Default for RankingOptions {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileSearchTool {
-    #[serde(rename = "type")]
-    type_field: String,
     vector_store_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     filters: Option<FileSearchFilter>,
@@ -207,7 +190,6 @@ pub struct FileSearchTool {
 impl FileSearchTool {
     pub fn new(vector_store_ids: Vec<impl Into<String>>) -> Self {
         Self {
-            type_field: "file_search".to_string(),
             vector_store_ids: vector_store_ids.into_iter().map(|id| id.into()).collect(),
             filters: None,
             max_num_results: None,
@@ -236,26 +218,18 @@ pub struct FunctionTool {
     name: String,
     parameters: serde_json::Value,
     strict: bool,
-    #[serde(rename = "type")]
-    type_field: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
 }
 
 impl FunctionTool {
-    pub fn new(name: impl Into<String>, parameters: serde_json::Value) -> Self {
+    pub fn new(name: impl Into<String>, parameters: serde_json::Value, strict: bool) -> Self {
         Self {
             name: name.into(),
             parameters,
-            strict: true,
-            type_field: "function".to_string(),
+            strict,
             description: None,
         }
-    }
-
-    pub fn strict(mut self, value: bool) -> Self {
-        self.strict = value;
-        self
     }
 
     pub fn description(mut self, value: impl Into<String>) -> Self {
@@ -269,8 +243,6 @@ pub struct ComputerUseTool {
     display_height: f32,
     display_width: f32,
     environment: String,
-    #[serde(rename = "type")]
-    type_field: String,
 }
 
 impl ComputerUseTool {
@@ -279,7 +251,6 @@ impl ComputerUseTool {
             display_height,
             display_width,
             environment: environment.into(),
-            type_field: "computer_use_preview".to_string(),
         }
     }
 }
@@ -357,10 +328,22 @@ impl Default for UserLocation {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum WebSearchVariant {
+    Preview,
+    Preview2025_03_11,
+}
+
+impl Default for WebSearchVariant {
+    fn default() -> Self {
+        Self::Preview
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct WebSearchTool {
-    #[serde(rename = "type")]
-    type_field: String, // NOTE: this is either web_search_preview or web_search_preview_2025_03_11C
+    #[serde(skip)]
+    variant: WebSearchVariant,
     #[serde(skip_serializing_if = "Option::is_none")]
     search_context_size: Option<SearchContextSize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -368,9 +351,17 @@ pub struct WebSearchTool {
 }
 
 impl WebSearchTool {
-    pub fn new(type_field: impl Into<String>) -> Self {
+    pub fn preview() -> Self {
         Self {
-            type_field: type_field.into(),
+            variant: WebSearchVariant::Preview,
+            search_context_size: None,
+            user_location: None,
+        }
+    }
+
+    pub fn preview_2025_03_11() -> Self {
+        Self {
+            variant: WebSearchVariant::Preview2025_03_11,
             search_context_size: None,
             user_location: None,
         }
@@ -389,11 +380,130 @@ impl WebSearchTool {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+pub enum AllowedTools {
+    MCPAllowedTools(Vec<String>),
+    MCPAllowedToolsFilter(HashMap<String, Vec<String>>),
+}
+
+impl AllowedTools {
+    pub fn from_allowed_tools(value: Vec<impl Into<String>>) -> Self {
+        Self::MCPAllowedTools(value.into_iter().map(|v| v.into()).collect())
+    }
+
+    pub fn from_allowed_tools_filter(value: Vec<impl Into<String>>) -> Self {
+        Self::MCPAllowedToolsFilter(HashMap::from([(
+            "tool_names".to_string(),
+            value.into_iter().map(|v| v.into()).collect(),
+        )]))
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ApprovalSetting {
+    Always,
+    Never,
+}
+
+impl FromStr for ApprovalSetting {
+    type Err = ConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "always" => Ok(ApprovalSetting::Always),
+            "never" => Ok(ApprovalSetting::Never),
+            _ => Err(ConversionError::FromStr(s.to_string())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RequireApproval {
+    MCPToolApprovalFilter {
+        #[serde(rename = "always")]
+        always: Option<HashMap<String, Vec<String>>>,
+        #[serde(rename = "never")]
+        never: Option<HashMap<String, Vec<String>>>,
+    },
+    MCPToolApprovalSetting(ApprovalSetting),
+}
+
+impl RequireApproval {
+    // NOTE: always is a list of tools that always require approval
+    // NOTE: never is a list of tools that never require approval
+    pub fn from_approval_filter(
+        always: Vec<impl Into<String>>,
+        never: Vec<impl Into<String>>,
+    ) -> Self {
+        Self::MCPToolApprovalFilter {
+            always: Some(HashMap::from([(
+                "tool_names".to_string(),
+                always.into_iter().map(|v| v.into()).collect(),
+            )])),
+            never: Some(HashMap::from([(
+                "tool_names".to_string(),
+                never.into_iter().map(|v| v.into()).collect(),
+            )])),
+        }
+    }
+
+    pub fn from_approval_setting(setting: impl AsRef<str>) -> Result<Self, ConversionError> {
+        ApprovalSetting::from_str(setting.as_ref()).map(Self::MCPToolApprovalSetting)
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct MCPTool {
+    pub server_label: String,
+    pub server_url: String,
+    pub allowed_tools: Option<AllowedTools>,
+    pub headers: Option<HashMap<String, String>>,
+    pub require_approval: Option<RequireApproval>,
+}
+
+impl MCPTool {
+    pub fn new(server_label: impl Into<String>, server_url: impl Into<String>) -> Self {
+        Self {
+            server_label: server_label.into(),
+            server_url: server_url.into(),
+            allowed_tools: None,
+            headers: None,
+            require_approval: None,
+        }
+    }
+
+    pub fn allowed_tools(mut self, value: AllowedTools) -> Self {
+        self.allowed_tools = Some(value);
+        self
+    }
+
+    pub fn headers(mut self, value: HashMap<String, String>) -> Self {
+        self.headers = Some(value);
+        self
+    }
+
+    pub fn require_approval(mut self, value: RequireApproval) -> Self {
+        self.require_approval = Some(value);
+        self
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Tool {
-    FileSearch(FileSearchTool),
-    Function(FunctionTool),
-    ComputerUse(ComputerUseTool),
+    #[serde(rename = "web_search_preview")]
     WebSearch(WebSearchTool),
+    #[serde(rename = "web_search_preview_2025_03_11")]
+    WebSearchPreview2025_03_11(WebSearchTool),
+    #[serde(rename = "file_search")]
+    FileSearch(FileSearchTool),
+    #[serde(rename = "function")]
+    Function(FunctionTool),
+    #[serde(rename = "computer_use_preview")]
+    ComputerUse(ComputerUseTool),
+    #[serde(rename = "mcp")]
+    MCP(MCPTool),
 }
 
 impl From<FileSearchTool> for Tool {
@@ -449,7 +559,10 @@ impl TryFrom<Tool> for ComputerUseTool {
 
 impl From<WebSearchTool> for Tool {
     fn from(tool: WebSearchTool) -> Self {
-        Tool::WebSearch(tool)
+        match tool.variant {
+            WebSearchVariant::Preview => Tool::WebSearch(tool),
+            WebSearchVariant::Preview2025_03_11 => Tool::WebSearchPreview2025_03_11(tool),
+        }
     }
 }
 
@@ -458,7 +571,24 @@ impl TryFrom<Tool> for WebSearchTool {
 
     fn try_from(tool: Tool) -> Result<Self, Self::Error> {
         match tool {
-            Tool::WebSearch(inner) => Ok(inner),
+            Tool::WebSearch(inner) | Tool::WebSearchPreview2025_03_11(inner) => Ok(inner),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
+        }
+    }
+}
+
+impl From<MCPTool> for Tool {
+    fn from(tool: MCPTool) -> Self {
+        Self::MCP(tool)
+    }
+}
+
+impl TryFrom<Tool> for MCPTool {
+    type Error = ConversionError;
+
+    fn try_from(tool: Tool) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::MCP(inner) => Ok(inner),
             _ => Err(ConversionError::TryFrom("Tool".to_string())),
         }
     }
@@ -470,279 +600,190 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn it_creates_file_search_tool_with_comparison_operator() {
-        let vector_store_ids = vec![
-            "id_1".to_string(),
-            "id_2".to_string(),
-            "id_3".to_string(),
-            "id_4".to_string(),
-        ];
-        let tool: Tool = FileSearchTool::new(vector_store_ids.clone()).into();
-        let tool: Tool = FileSearchTool::try_from(tool)
-            .unwrap()
-            .ranking_options(
-                RankingOptions::new()
-                    .ranker("test_ranker")
-                    .score_threshold(1.0),
+    fn it_builds_web_search_tool() {
+        let preview: Tool = WebSearchTool::preview()
+            .search_context_size(SearchContextSize::High)
+            .user_location(
+                UserLocation::new()
+                    .city("Istanbul")
+                    .country("Turkey")
+                    .region("Europe")
+                    .timezone("UTC+3"),
             )
-            .filters(FileSearchFilter::build_comparison_filter(
-                "test_key",
-                "eq",
-                "test_value",
-            ))
-            .max_num_results(1)
             .into();
-
-        let expected = Tool::FileSearch(FileSearchTool {
-            type_field: "file_search".to_string(),
-            vector_store_ids,
-            ranking_options: Some(RankingOptions {
-                ranker: Some("test_ranker".to_string()),
-                score_threshold: Some(1.0),
-            }),
-            filters: Some(FileSearchFilter::Comparison(ComparisonFilter {
-                key: "test_key".to_string(),
-                type_field: ComparisonOperator::Eq,
-                value: FilterValue::String("test_value".to_string()),
-            })),
-            max_num_results: Some(1),
-        });
-
-        assert_eq!(tool, expected);
-    }
-
-    #[test]
-    fn it_creates_file_search_tool_with_compound_operator() {
-        let vector_store_ids = vec![
-            "id_1".to_string(),
-            "id_2".to_string(),
-            "id_3".to_string(),
-            "id_4".to_string(),
-        ];
-        let tool: Tool = FileSearchTool::new(vector_store_ids.clone())
-            .filters(FileSearchFilter::build_compound_filter(
-                vec![FileSearchFilter::build_comparison_filter(
-                    "test_key",
-                    "eq",
-                    "test_value",
-                )],
-                "and",
-            ))
-            .ranking_options(
-                RankingOptions::new()
-                    .ranker("test_ranker")
-                    .score_threshold(1.0),
+        let preview_2025_03_11: Tool = WebSearchTool::preview_2025_03_11()
+            .search_context_size(SearchContextSize::High)
+            .user_location(
+                UserLocation::new()
+                    .city("San Fransisco")
+                    .country("USA")
+                    .region("Bay Area")
+                    .timezone("UTC-7"),
             )
             .into();
 
-        let expected = Tool::FileSearch(FileSearchTool {
-            type_field: "file_search".to_string(),
-            vector_store_ids,
-            ranking_options: Some(RankingOptions {
-                ranker: Some("test_ranker".to_string()),
-                score_threshold: Some(1.0),
-            }),
-            filters: Some(FileSearchFilter::Compound(CompoundFilter {
-                type_field: CompoundOperator::And,
-                filters: vec![FileSearchFilter::Comparison(ComparisonFilter {
-                    key: "test_key".to_string(),
-                    type_field: ComparisonOperator::Eq,
-                    value: FilterValue::String("test_value".to_string()),
-                })],
-            })),
-            max_num_results: None,
+        let preview_expected = json!({
+            "type": "web_search_preview",
+            "search_context_size": "high",
+            "user_location": {
+                "city": "Istanbul",
+                "country": "Turkey",
+                "region": "Europe",
+                "timezone": "UTC+3",
+                "type": "approximate"
+            }
+        });
+        let preview_2025_03_11_expected = json!({
+            "type": "web_search_preview_2025_03_11",
+            "search_context_size": "high",
+            "user_location": {
+                "city": "San Fransisco",
+                "country": "USA",
+                "region": "Bay Area",
+                "timezone": "UTC-7",
+                "type": "approximate"
+            }
         });
 
-        assert_eq!(tool, expected);
+        assert_eq!(serde_json::to_value(preview).unwrap(), preview_expected);
+        assert_eq!(
+            serde_json::to_value(preview_2025_03_11).unwrap(),
+            preview_2025_03_11_expected
+        );
     }
 
     #[test]
-    fn it_creates_function_tool() {
+    fn it_builds_file_search_tool() {
+        let tool: Tool = FileSearchTool::new(vec!["vector-id-1", "vector-id-2"])
+            .max_num_results(8)
+            .ranking_options(
+                RankingOptions::new()
+                    .ranker("test-ranker")
+                    .score_threshold(32.0),
+            )
+            .filters(
+                FileSearchFilter::compound(
+                    vec![
+                        FileSearchFilter::comparison("comparison-1", "eq", "comparison-1").unwrap(),
+                        FileSearchFilter::comparison("comparison-2", "eq", "comparison-2").unwrap(),
+                    ],
+                    "and",
+                )
+                .unwrap(),
+            )
+            .into();
+
+        let expected = json!({
+            "type": "file_search",
+            "vector_store_ids": ["vector-id-1", "vector-id-2"],
+            "max_num_results": 8,
+            "ranking_options": {
+                "ranker": "test-ranker",
+                "score_threshold": 32.0
+            },
+            "filters": {
+                "filters": [
+                    {
+                        "key": "comparison-1",
+                        "type": "eq",
+                        "value": "comparison-1"
+                    },
+                    {
+                        "key": "comparison-2",
+                        "type": "eq",
+                        "value": "comparison-2"
+                    }
+                ],
+                "type": "and"
+            }
+        });
+
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
+    }
+
+    #[test]
+    fn it_builds_function_tool() {
         let tool: Tool = FunctionTool::new(
-            "function_tool_test",
+            "function_name",
             json!({
-                "name": "test"
+                "name": "function_name",
+                "params": [{ "name": "value", "type": "u32" }]
             }),
+            false,
         )
-        .description("this is description")
+        .description("test-description")
         .into();
 
-        let expected = Tool::Function(FunctionTool {
-            description: Some("this is description".to_string()),
-            type_field: "function".to_string(),
-            strict: true,
-            parameters: json!({"name": "test"}),
-            name: "function_tool_test".to_string(),
+        let expected = json!({
+            "name": "function_name",
+            "parameters": {
+                "name": "function_name",
+                "params": [{
+                    "name": "value",
+                    "type": "u32"
+                }]
+            },
+            "strict": false,
+            "description": "test-description",
+            "type": "function"
         });
 
-        assert_eq!(tool, expected);
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
     }
 
     #[test]
-    fn it_creates_computer_use_tool() {
-        let tool: Tool = ComputerUseTool::new(64.0, 64.0, "test_environment").into();
+    fn it_builds_computer_use() {
+        let tool: Tool = ComputerUseTool::new(1080.0, 1920.0, "test-environment").into();
 
-        let expected = Tool::ComputerUse(ComputerUseTool {
-            type_field: "computer_use_preview".to_string(),
-            environment: "test_environment".to_string(),
-            display_width: 64.0,
-            display_height: 64.0,
+        let expected = json!({
+            "type": "computer_use_preview",
+            "display_height": 1080.0,
+            "display_width": 1920.0,
+            "environment": "test-environment"
         });
 
-        assert_eq!(tool, expected);
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
     }
 
     #[test]
-    fn it_creates_web_search_tool() {
-        let tool: Tool = WebSearchTool::new("web_search_preview".to_string())
-            .search_context_size(SearchContextSize::Low)
-            .user_location(
-                UserLocation::new()
-                    .city("Istanbul")
-                    .country("TR")
-                    .region("Marmara")
-                    .timezone("Europe/Istanbul"),
-            )
-            .into();
-
-        let expected = Tool::WebSearch(WebSearchTool {
-            user_location: Some(UserLocation {
-                type_field: "approximate".to_string(),
-                city: Some("Istanbul".to_string()),
-                country: Some("TR".to_string()),
-                region: Some("Marmara".to_string()),
-                timezone: Some("Europe/Istanbul".to_string()),
-            }),
-            search_context_size: Some(SearchContextSize::Low),
-            type_field: "web_search_preview".to_string(),
-        });
-
-        assert_eq!(tool, expected);
-    }
-
-    // test the json values of the tool
-    #[test]
-    fn test_json_values() {
-        // FileSearchTool test
-        let tool: Tool = FileSearchTool::new(vec!["id_1", "id_2"])
-            .filters(FileSearchFilter::build_comparison_filter(
-                "test_key",
-                "eq",
-                "test_value".to_string(),
+    fn it_builds_mcp() {
+        let tool: Tool = MCPTool::new("server-label", "server-url")
+            .allowed_tools(AllowedTools::from_allowed_tools_filter(vec![
+                "allowed-tool-1",
+                "allowed-tool-2",
+                "allowed-tool-3",
+            ]))
+            .headers(HashMap::from([
+                ("Authorization".to_string(), "Bearer token".to_string()),
+                ("Accept-Language".to_string(), "en-us, en;q=0.5".to_string()),
+            ]))
+            .require_approval(RequireApproval::from_approval_filter(
+                vec!["allowed-tool-1", "allowed-tool-2"],
+                vec!["allowed-tool-3"],
             ))
-            .max_num_results(1)
-            .ranking_options(
-                RankingOptions::new()
-                    .ranker("test_ranker")
-                    .score_threshold(1.0),
-            )
             .into();
-        let json_value = serde_json::to_value(&tool).unwrap();
 
-        assert_eq!(
-            json_value,
-            serde_json::json!({
-                "type": "file_search",
-                "vector_store_ids": ["id_1", "id_2"],
-                "filters": {
-                    "type": "comparison",
-                    "key": "test_key",
-                    "type": "eq",
-                    "value": "test_value"
+        let expected = json!({
+            "server_label": "server-label",
+            "server_url": "server-url",
+            "type": "mcp",
+            "allowed_tools": {
+                "tool_names": ["allowed-tool-1", "allowed-tool-2", "allowed-tool-3"]
+            },
+            "headers": {
+                "Authorization": "Bearer token",
+                "Accept-Language": "en-us, en;q=0.5"
+            },
+            "require_approval": {
+                "always": {
+                    "tool_names": ["allowed-tool-1", "allowed-tool-2"]
                 },
-                "max_num_results": 1,
-                "ranking_options": {
-                    "ranker": "test_ranker",
-                    "score_threshold": 1.0
+                "never": {
+                    "tool_names": ["allowed-tool-3"]
                 }
-            })
-        );
+            }
+        });
 
-        // FunctionTool test
-        let tool: Tool = FunctionTool::new("test", json!({}))
-            .description("this is description")
-            .into();
-        let json_value = serde_json::to_value(&tool).unwrap();
-
-        assert_eq!(
-            json_value,
-            serde_json::json!({
-                "type": "function",
-                "name": "test",
-                "parameters": {},
-                "strict": true,
-                "description": "this is description"
-            })
-        );
-
-        // ComputerUseTool test
-        let tool: Tool = ComputerUseTool::new(64.0, 64.0, "test_environment").into();
-        let json_value = serde_json::to_value(&tool).unwrap();
-
-        assert_eq!(
-            json_value,
-            serde_json::json!({
-                "type": "computer_use_preview",
-                "environment": "test_environment",
-                "display_width": 64.0,
-                "display_height": 64.0
-            })
-        );
-
-        // WebSearchTool test with web_search_preview
-        let tool: Tool = WebSearchTool::new("web_search_preview".to_string())
-            .search_context_size(SearchContextSize::Low)
-            .user_location(
-                UserLocation::new()
-                    .city("Istanbul")
-                    .country("TR")
-                    .region("Marmara")
-                    .timezone("Europe/Istanbul"),
-            )
-            .into();
-        let json_value = serde_json::to_value(&tool).unwrap();
-
-        assert_eq!(
-            json_value,
-            serde_json::json!({
-                "type": "web_search_preview",
-                "search_context_size": "low",
-                "user_location": {
-                    "type": "approximate",
-                    "city": "Istanbul",
-                    "country": "TR",
-                    "region": "Marmara",
-                    "timezone": "Europe/Istanbul"
-                }
-            })
-        );
-
-        // WebSearchTool test with web_search_preview_2025_03_11C
-        let tool: Tool = WebSearchTool::new("web_search_preview_2025_03_11C".to_string())
-            .search_context_size(SearchContextSize::Low)
-            .user_location(
-                UserLocation::new()
-                    .city("Istanbul")
-                    .country("TR")
-                    .region("Marmara")
-                    .timezone("Europe/Istanbul"),
-            )
-            .into();
-        let json_value = serde_json::to_value(&tool).unwrap();
-
-        assert_eq!(
-            json_value,
-            serde_json::json!({
-                "type": "web_search_preview_2025_03_11C",
-                "search_context_size": "low",
-                "user_location": {
-                    "type": "approximate",
-                    "city": "Istanbul",
-                    "country": "TR",
-                    "region": "Marmara",
-                    "timezone": "Europe/Istanbul"
-                }
-            })
-        );
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
     }
 }

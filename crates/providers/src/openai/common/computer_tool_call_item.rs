@@ -218,4 +218,37 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn it_builds_computer_tool_call_item() {
+        let item = ComputerToolCallItem::new(
+            ComputerToolAction::Screenshot,
+            "test-call-id".to_string(),
+            "test-id".to_string(),
+            vec![PendingSafetyChecks::new(
+                "test-code",
+                "test-id",
+                "test-message",
+            )],
+            Status::InProgress,
+        );
+
+        let expected = json!({
+            "action": {
+                "type": "screenshot",
+            },
+            "call_id": "test-call-id",
+            "id": "test-id",
+            "pending_safety_checks": [
+                {
+                    "code": "test-code",
+                    "id": "test-id",
+                    "message": "test-message"
+                }
+            ],
+            "status": "in_progress"
+        });
+
+        assert_eq!(serde_json::to_value(item).unwrap(), expected);
+    }
 }

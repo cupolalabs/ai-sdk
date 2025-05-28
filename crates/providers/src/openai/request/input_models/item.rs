@@ -17,9 +17,6 @@ pub struct InputMessageItem {
     pub role: Role,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
-    #[serde(rename = "type")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub type_field: Option<String>,
 }
 
 impl InputMessageItem {
@@ -35,17 +32,10 @@ impl InputMessageItem {
             Ok(self)
         }
     }
-
-    pub fn insert_type(mut self) -> Self {
-        self.type_field = Some("message".to_string());
-        self
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ComputerToolCallOutputItemOutput {
-    #[serde(rename = "type")]
-    pub type_field: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,7 +45,6 @@ pub struct ComputerToolCallOutputItemOutput {
 impl Default for ComputerToolCallOutputItemOutput {
     fn default() -> Self {
         Self {
-            type_field: "computer_screenshot".to_string(),
             image_url: None,
             file_id: None,
         }
@@ -182,33 +171,25 @@ impl FunctionToolCallOutputItem {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Summary {
-    pub text: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-}
-
-impl Summary {
-    pub fn new(text: impl Into<String>) -> Self {
-        Self {
-            text: text.into(),
-            type_field: "summary_text".to_string(),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type")]
 pub enum Item {
+    #[serde(rename = "message")]
     InputMessage(InputMessageItem),
     OutputMessage(OutputMessageItem),
+    #[serde(rename = "file_search_call")]
     FileSearchToolCall(FileSearchToolCallItem),
+    #[serde(rename = "computer_call")]
     ComputerToolCall(ComputerToolCallItem),
+    #[serde(rename = "computer_call_output")]
     ComputerToolCallOutput(ComputerToolCallOutputItem),
+    #[serde(rename = "web_search_call")]
     WebSearchToolCall(WebSearchToolCallItem),
+    #[serde(rename = "function_call")]
     FunctionToolCall(FunctionToolCallItem),
+    #[serde(rename = "function_call_output")]
     FunctionToolCallOutput(FunctionToolCallOutputItem),
+    #[serde(rename = "reasoning")]
     Reasoning(ReasoningItem),
 }
 
