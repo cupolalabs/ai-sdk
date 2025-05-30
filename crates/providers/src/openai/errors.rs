@@ -26,6 +26,8 @@ pub enum InputError {
     InvalidButtonForClickAction(String),
     ConversionError(ConversionError),
     InvalidModelId(String),
+    // ImageGenerationTool
+    InvalidPartialImage(usize),
 }
 
 impl Display for InputError {
@@ -44,6 +46,13 @@ impl Display for InputError {
             }
             InputError::ConversionError(err) => write!(f, "Conversion error: {}", err),
             InputError::InvalidModelId(err) => write!(f, "Invalid model id: {}", err),
+            InputError::InvalidPartialImage(value) => {
+                write!(
+                    f,
+                    "Invalid partial image value: {}. Value must be between 0 and 3",
+                    value
+                )
+            }
         }
     }
 }

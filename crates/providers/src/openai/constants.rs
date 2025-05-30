@@ -70,6 +70,16 @@ pub enum OpenAIModelId {
     OmniModerationLatest,
     OmniModeration2024_09_26,
     CodexMiniLatest,
+    DallE3,
+    DallE2,
+    Gpt4Turbo2024_04_09,
+    Babbage002,
+    Davinci002,
+    O1_2024_12_17,
+    O1,
+    Tts1,
+    Tts1_1106,
+    Whisper1,
 }
 
 impl Default for OpenAIModelId {
@@ -144,6 +154,16 @@ impl OpenAIModelId {
             Self::OmniModerationLatest => "omni-moderation-latest",
             Self::OmniModeration2024_09_26 => "omni-moderation-2024-09-26",
             Self::CodexMiniLatest => "codex-mini-latest",
+            Self::DallE3 => "dall-e-3",
+            Self::DallE2 => "dall-e-2",
+            Self::Gpt4Turbo2024_04_09 => "gpt-4-turbo-2024-04-09",
+            Self::Babbage002 => "babbage-002",
+            Self::Davinci002 => "davinci-002",
+            Self::O1_2024_12_17 => "o1-2024-12-17",
+            Self::O1 => "o1",
+            Self::Tts1 => "tts-1",
+            Self::Tts1_1106 => "tts-1-1106",
+            Self::Whisper1 => "whisper-1",
         }
     }
 }
@@ -232,6 +252,16 @@ impl FromStr for OpenAIModelId {
             "omni-moderation-latest" => Ok(Self::OmniModerationLatest),
             "omni-moderation-2024-09-26" => Ok(Self::OmniModeration2024_09_26),
             "codex-mini-latest" => Ok(Self::CodexMiniLatest),
+            "dall-e-3" => Ok(Self::DallE3),
+            "dall-e-2" => Ok(Self::DallE2),
+            "gpt-4-turbo-2024-04-09" => Ok(Self::Gpt4Turbo2024_04_09),
+            "babbage-002" => Ok(Self::Babbage002),
+            "davinci-002" => Ok(Self::Davinci002),
+            "o1-2024-12-17" => Ok(Self::O1_2024_12_17),
+            "o1" => Ok(Self::O1),
+            "tts-1" => Ok(Self::Tts1),
+            "tts-1-1106" => Ok(Self::Tts1_1106),
+            "whisper-1" => Ok(Self::Whisper1),
             _ => Err(InputError::InvalidModelId(s.to_string())),
         }
     }

@@ -1,9 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
-use futures::stream::All;
 use serde::{Deserialize, Serialize};
 
-use crate::openai::errors::ConversionError;
+use crate::openai::{
+    constants::OpenAIModelId,
+    errors::{ConversionError, InputError},
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -152,9 +154,9 @@ impl FileSearchFilter {
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RankingOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
-    ranker: Option<String>,
+    pub ranker: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    score_threshold: Option<f32>,
+    pub score_threshold: Option<f32>,
 }
 
 impl RankingOptions {
@@ -178,13 +180,13 @@ impl RankingOptions {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct FileSearchTool {
-    vector_store_ids: Vec<String>,
+    pub vector_store_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    filters: Option<FileSearchFilter>,
+    pub filters: Option<FileSearchFilter>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_num_results: Option<u8>,
+    pub max_num_results: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    ranking_options: Option<RankingOptions>,
+    pub ranking_options: Option<RankingOptions>,
 }
 
 impl FileSearchTool {
@@ -215,11 +217,11 @@ impl FileSearchTool {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct FunctionTool {
-    name: String,
-    parameters: serde_json::Value,
-    strict: bool,
+    pub name: String,
+    pub parameters: serde_json::Value,
+    pub strict: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 }
 
 impl FunctionTool {
@@ -240,9 +242,9 @@ impl FunctionTool {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ComputerUseTool {
-    display_height: f32,
-    display_width: f32,
-    environment: String,
+    pub display_height: f32,
+    pub display_width: f32,
+    pub environment: String,
 }
 
 impl ComputerUseTool {
@@ -279,15 +281,15 @@ impl FromStr for SearchContextSize {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserLocation {
     #[serde(rename = "type")]
-    type_field: String, // NOTE: this is always "approximate" value
+    pub type_field: String, // NOTE: this is always "approximate" value
     #[serde(skip_serializing_if = "Option::is_none")]
-    city: Option<String>,
+    pub city: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    country: Option<String>, // NOTE: this is ISO-3166 country code
+    pub country: Option<String>, // NOTE: this is ISO-3166 country code
     #[serde(skip_serializing_if = "Option::is_none")]
-    region: Option<String>,
+    pub region: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    timezone: Option<String>, // NOTE: this is IANA timezone
+    pub timezone: Option<String>, // NOTE: this is IANA timezone
 }
 
 impl UserLocation {
@@ -329,7 +331,7 @@ impl Default for UserLocation {
 }
 
 #[derive(Debug, PartialEq)]
-enum WebSearchVariant {
+pub enum WebSearchVariant {
     Preview,
     Preview2025_03_11,
 }
@@ -343,14 +345,16 @@ impl Default for WebSearchVariant {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct WebSearchTool {
     #[serde(skip)]
-    variant: WebSearchVariant,
+    pub variant: WebSearchVariant,
     #[serde(skip_serializing_if = "Option::is_none")]
-    search_context_size: Option<SearchContextSize>,
+    pub search_context_size: Option<SearchContextSize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    user_location: Option<UserLocation>,
+    pub user_location: Option<UserLocation>,
 }
 
 impl WebSearchTool {
+    pub fn new() {}
+
     pub fn preview() -> Self {
         Self {
             variant: WebSearchVariant::Preview,
@@ -422,8 +426,10 @@ impl FromStr for ApprovalSetting {
 pub enum RequireApproval {
     MCPToolApprovalFilter {
         #[serde(rename = "always")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         always: Option<HashMap<String, Vec<String>>>,
         #[serde(rename = "never")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         never: Option<HashMap<String, Vec<String>>>,
     },
     MCPToolApprovalSetting(ApprovalSetting),
@@ -457,8 +463,11 @@ impl RequireApproval {
 pub struct MCPTool {
     pub server_label: String,
     pub server_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_tools: Option<AllowedTools>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub require_approval: Option<RequireApproval>,
 }
 
@@ -490,6 +499,262 @@ impl MCPTool {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CodeInterpreterContainer {
+    ID(String),
+    IDS {
+        #[serde(rename = "type")]
+        type_field: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        file_ids: Option<Vec<String>>,
+    },
+}
+
+impl CodeInterpreterContainer {
+    pub fn from_id(value: impl Into<String>) -> Self {
+        Self::ID(value.into())
+    }
+
+    pub fn from_ids(value: Vec<impl Into<String>>) -> Self {
+        Self::IDS {
+            type_field: "auto".to_string(),
+            file_ids: Some(value.into_iter().map(|v| v.into()).collect()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct CodeInterpreterTool {
+    pub container: CodeInterpreterContainer,
+}
+
+impl CodeInterpreterTool {
+    pub fn new(container: CodeInterpreterContainer) -> Self {
+        Self { container }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageGenerationBackground {
+    Transparent,
+    Opaque,
+    #[default]
+    Auto,
+}
+
+impl FromStr for ImageGenerationBackground {
+    type Err = ConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "transparent" => Ok(ImageGenerationBackground::Transparent),
+            "opaque" => Ok(ImageGenerationBackground::Opaque),
+            "auto" => Ok(ImageGenerationBackground::Auto),
+            _ => Err(ConversionError::TryFrom("ImageGenerationTool".to_string())),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct InputImageMask {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+}
+
+impl InputImageMask {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn file_id(mut self, value: impl Into<String>) -> Self {
+        self.file_id = Some(value.into());
+        self
+    }
+
+    pub fn image_url(mut self, value: impl Into<String>) -> Self {
+        self.image_url = Some(value.into());
+        self
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageGenerationOutputFormat {
+    #[default]
+    PNG,
+    WEBP,
+    JPEG,
+}
+
+impl FromStr for ImageGenerationOutputFormat {
+    type Err = ConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "png" => Ok(ImageGenerationOutputFormat::PNG),
+            "webp" => Ok(ImageGenerationOutputFormat::WEBP),
+            "jpeg" => Ok(ImageGenerationOutputFormat::JPEG),
+            _ => Err(ConversionError::TryFrom(
+                "ImageGenerationOutputFormat".to_string(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageGenerationQuality {
+    Low,
+    Medium,
+    High,
+    #[default]
+    Auto,
+}
+
+impl FromStr for ImageGenerationQuality {
+    type Err = ConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "low" => Ok(ImageGenerationQuality::Low),
+            "medium" => Ok(ImageGenerationQuality::Medium),
+            "high" => Ok(ImageGenerationQuality::High),
+            "auto" => Ok(ImageGenerationQuality::Auto),
+            _ => Err(ConversionError::TryFrom(
+                "ImageGenerationQuality".to_string(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageGenerationSize {
+    #[serde(rename = "1024x1024")]
+    Size1024x1024,
+    #[serde(rename = "1024x1536")]
+    Size1024x1536,
+    #[serde(rename = "1536x1024")]
+    Size1536x1024,
+    #[default]
+    Auto,
+}
+
+impl FromStr for ImageGenerationSize {
+    type Err = ConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1024x1024" => Ok(ImageGenerationSize::Size1024x1024),
+            "1024x1536" => Ok(ImageGenerationSize::Size1024x1536),
+            "1536x1024" => Ok(ImageGenerationSize::Size1536x1024),
+            "auto" => Ok(ImageGenerationSize::Auto),
+            _ => Err(ConversionError::TryFrom("ImageGenerationSize".to_string())),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct ImageGenerationTool {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<ImageGenerationBackground>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_image_mask: Option<InputImageMask>,
+    // NOTE: Image generation model. Currently, we accept OpenAIModelId and
+    // there is no control over the image generation model names -- defaults to gpt-image-1
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<OpenAIModelId>,
+    // NOTE: there is no explanation for the values in docs -- defaults to auto
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub moderation: Option<String>,
+    // NOTE: defaults to 100
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_compression: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_format: Option<ImageGenerationOutputFormat>,
+    // NOTE: this value can be from 0 to 3 -- defaults to 0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partial_image: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality: Option<ImageGenerationQuality>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<ImageGenerationSize>,
+}
+
+impl Default for ImageGenerationTool {
+    fn default() -> Self {
+        Self {
+            background: None,
+            input_image_mask: None,
+            model: Some(OpenAIModelId::GptImage1),
+            moderation: Some("auto".into()),
+            output_compression: Some(100),
+            output_format: None,
+            partial_image: Some(0),
+            quality: None,
+            size: None,
+        }
+    }
+}
+
+impl ImageGenerationTool {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn background(mut self, value: impl Into<String>) -> Result<Self, ConversionError> {
+        self.background = Some(ImageGenerationBackground::from_str(&value.into())?);
+        Ok(self)
+    }
+
+    pub fn input_image_mask(mut self, value: InputImageMask) -> Self {
+        self.input_image_mask = Some(value);
+        self
+    }
+
+    pub fn model(mut self, value: impl Into<String>) -> Self {
+        self.model = Some(OpenAIModelId::from_str(&value.into()).unwrap());
+        self
+    }
+
+    pub fn moderation(mut self, value: impl Into<String>) -> Self {
+        self.moderation = Some(value.into());
+        self
+    }
+
+    pub fn output_compression(mut self, value: usize) -> Self {
+        self.output_compression = Some(value);
+        self
+    }
+
+    pub fn output_format(mut self, value: impl Into<String>) -> Result<Self, ConversionError> {
+        self.output_format = Some(ImageGenerationOutputFormat::from_str(&value.into())?);
+        Ok(self)
+    }
+
+    pub fn partial_image(mut self, value: usize) -> Result<Self, InputError> {
+        if value > 3 {
+            return Err(InputError::InvalidPartialImage(value));
+        }
+        self.partial_image = Some(value);
+        Ok(self)
+    }
+
+    pub fn quality(mut self, value: impl Into<String>) -> Result<Self, ConversionError> {
+        self.quality = Some(ImageGenerationQuality::from_str(&value.into())?);
+        Ok(self)
+    }
+
+    pub fn size(mut self, value: impl Into<String>) -> Result<Self, ConversionError> {
+        self.size = Some(ImageGenerationSize::from_str(&value.into())?);
+        Ok(self)
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Tool {
     #[serde(rename = "web_search_preview")]
@@ -504,6 +769,12 @@ pub enum Tool {
     ComputerUse(ComputerUseTool),
     #[serde(rename = "mcp")]
     MCP(MCPTool),
+    #[serde(rename = "code_interpreter")]
+    CodeInterpreter(CodeInterpreterTool),
+    #[serde(rename = "image_generation")]
+    ImageGeneration(ImageGenerationTool),
+    #[serde(rename = "local_shell")]
+    LocalShell,
 }
 
 impl From<FileSearchTool> for Tool {
@@ -589,6 +860,40 @@ impl TryFrom<Tool> for MCPTool {
     fn try_from(tool: Tool) -> Result<Self, Self::Error> {
         match tool {
             Tool::MCP(inner) => Ok(inner),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
+        }
+    }
+}
+
+impl From<CodeInterpreterTool> for Tool {
+    fn from(tool: CodeInterpreterTool) -> Self {
+        Self::CodeInterpreter(tool)
+    }
+}
+
+impl TryFrom<Tool> for CodeInterpreterTool {
+    type Error = ConversionError;
+
+    fn try_from(tool: Tool) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::CodeInterpreter(inner) => Ok(inner),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
+        }
+    }
+}
+
+impl From<ImageGenerationTool> for Tool {
+    fn from(tool: ImageGenerationTool) -> Self {
+        Self::ImageGeneration(tool)
+    }
+}
+
+impl TryFrom<Tool> for ImageGenerationTool {
+    type Error = ConversionError;
+
+    fn try_from(tool: Tool) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::ImageGeneration(inner) => Ok(inner),
             _ => Err(ConversionError::TryFrom("Tool".to_string())),
         }
     }
@@ -782,6 +1087,73 @@ mod tests {
                     "tool_names": ["allowed-tool-3"]
                 }
             }
+        });
+
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
+    }
+
+    #[test]
+    fn it_builds_code_interpreter() {
+        let tool: Tool =
+            CodeInterpreterTool::new(CodeInterpreterContainer::from_ids(vec!["id-1", "id-2"]))
+                .into();
+
+        let expected = json!({
+            "container": {"type": "auto", "file_ids": ["id-1", "id-2"]},
+            "type": "code_interpreter",
+        });
+
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
+    }
+
+    #[test]
+    fn it_builds_image_generation() {
+        let tool: Tool = ImageGenerationTool::new()
+            .background("transparent")
+            .unwrap()
+            .input_image_mask(
+                InputImageMask::new()
+                    .file_id("image-mask-file-id")
+                    .image_url("image-mask-image-url"),
+            )
+            .model(OpenAIModelId::GptImage1)
+            .moderation("other-than-auto")
+            .output_compression(69)
+            .output_format("webp")
+            .unwrap()
+            .partial_image(2)
+            .unwrap()
+            .quality("high")
+            .unwrap()
+            .size("1024x1024")
+            .unwrap()
+            .into();
+
+        let expected = json!({
+            "background": "transparent",
+            "input_image_mask": {
+                "file_id": "image-mask-file-id",
+                "image_url": "image-mask-image-url",
+            },
+            "model": "gpt-image-1",
+            "moderation": "other-than-auto",
+            "output_compression": 69,
+            "output_format": "webp",
+            "partial_image": 2,
+            "quality": "high",
+            "size": "1024x1024",
+            "type": "image_generation"
+        });
+
+        assert_eq!(serde_json::to_value(tool).unwrap(), expected);
+    }
+
+    #[test]
+    fn it_builds_local_shell() {
+        let tool = Tool::LocalShell;
+
+        let expected = json!({
+            "type": "local_shell"
         });
 
         assert_eq!(serde_json::to_value(tool).unwrap(), expected);
