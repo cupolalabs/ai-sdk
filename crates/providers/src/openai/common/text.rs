@@ -63,9 +63,9 @@ impl TryFrom<ResponseFormat> for JsonSchemaFormat {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Text {
-    // NOTE: this one is optiona in the docs however outer field which is Text
+    // NOTE: this is optional in the docs however outer field which is Text
     // is also optional in the input field, so that's why we don't need to
-    // make format Option
+    // make format Option. this is a bit of confusing.
     format: ResponseFormat,
 }
 

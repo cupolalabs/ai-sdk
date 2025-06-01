@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::openai::{
     constants::OpenAIModelId,
-    errors::{ConversionError, InputError},
+    errors::{BuilderError, ConversionError, InputError},
 };
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -190,6 +190,19 @@ pub struct FileSearchTool {
 }
 
 impl FileSearchTool {
+    pub fn new(vector_store_ids: Vec<impl Into<String>>) -> FileSearchToolBuilder {
+        FileSearchToolBuilder::new(vector_store_ids)
+    }
+}
+
+pub struct FileSearchToolBuilder {
+    vector_store_ids: Vec<String>,
+    filters: Option<FileSearchFilter>,
+    max_num_results: Option<u8>,
+    ranking_options: Option<RankingOptions>,
+}
+
+impl FileSearchToolBuilder {
     pub fn new(vector_store_ids: Vec<impl Into<String>>) -> Self {
         Self {
             vector_store_ids: vector_store_ids.into_iter().map(|id| id.into()).collect(),
@@ -199,8 +212,8 @@ impl FileSearchTool {
         }
     }
 
-    pub fn filters(mut self, filters: FileSearchFilter) -> Self {
-        self.filters = Some(filters);
+    pub fn filters(mut self, filters: impl Into<FileSearchFilter>) -> Self {
+        self.filters = Some(filters.into());
         self
     }
 
@@ -212,6 +225,19 @@ impl FileSearchTool {
     pub fn ranking_options(mut self, value: RankingOptions) -> Self {
         self.ranking_options = Some(value);
         self
+    }
+
+    pub fn build(self) -> Result<FileSearchTool, BuilderError> {
+        if self.vector_store_ids.is_empty() {
+            return Err(BuilderError::Input(InputError::EmptyVectorStoreIds));
+        }
+
+        Ok(FileSearchTool {
+            vector_store_ids: self.vector_store_ids,
+            filters: self.filters,
+            max_num_results: self.max_num_results,
+            ranking_options: self.ranking_options,
+        })
     }
 }
 
@@ -225,6 +251,23 @@ pub struct FunctionTool {
 }
 
 impl FunctionTool {
+    pub fn new(
+        name: impl Into<String>,
+        parameters: serde_json::Value,
+        strict: bool,
+    ) -> FunctionToolBuilder {
+        FunctionToolBuilder::new(name, parameters, strict)
+    }
+}
+
+pub struct FunctionToolBuilder {
+    name: String,
+    parameters: serde_json::Value,
+    strict: bool,
+    description: Option<String>,
+}
+
+impl FunctionToolBuilder {
     pub fn new(name: impl Into<String>, parameters: serde_json::Value, strict: bool) -> Self {
         Self {
             name: name.into(),
@@ -238,6 +281,27 @@ impl FunctionTool {
         self.description = Some(value.into());
         self
     }
+
+    pub fn build(self) -> Result<FunctionTool, BuilderError> {
+        if self.name.is_empty() {
+            return Err(BuilderError::Input(InputError::EmptyName));
+        }
+
+        if self.parameters.is_null() {
+            return Err(BuilderError::Input(InputError::EmptyParameters));
+        }
+
+        if self.strict {
+            return Err(BuilderError::Input(InputError::StrictFunctionTool));
+        }
+
+        Ok(FunctionTool {
+            name: self.name,
+            parameters: self.parameters,
+            strict: self.strict,
+            description: self.description,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -248,12 +312,48 @@ pub struct ComputerUseTool {
 }
 
 impl ComputerUseTool {
+    pub fn new(
+        display_height: f32,
+        display_width: f32,
+        environment: impl Into<String>,
+    ) -> ComputerUseToolBuilder {
+        ComputerUseToolBuilder::new(display_height, display_width, environment)
+    }
+}
+
+pub struct ComputerUseToolBuilder {
+    display_height: f32,
+    display_width: f32,
+    environment: String,
+}
+
+impl ComputerUseToolBuilder {
     pub fn new(display_height: f32, display_width: f32, environment: impl Into<String>) -> Self {
         Self {
             display_height,
             display_width,
             environment: environment.into(),
         }
+    }
+
+    pub fn build(self) -> Result<ComputerUseTool, BuilderError> {
+        if self.display_height <= 0.0 {
+            return Err(BuilderError::Input(InputError::InvalidDisplayHeight));
+        }
+
+        if self.display_width <= 0.0 {
+            return Err(BuilderError::Input(InputError::InvalidDisplayWidth));
+        }
+
+        if self.environment.is_empty() {
+            return Err(BuilderError::Input(InputError::EmptyEnvironment));
+        }
+
+        Ok(ComputerUseTool {
+            display_height: self.display_height,
+            display_width: self.display_width,
+            environment: self.environment,
+        })
     }
 }
 
@@ -275,6 +375,18 @@ impl FromStr for SearchContextSize {
             "high" => Ok(SearchContextSize::High),
             _ => Err(ConversionError::FromStr(s.to_string())),
         }
+    }
+}
+
+impl From<&str> for SearchContextSize {
+    fn from(s: &str) -> Self {
+        Self::from_str(s).unwrap_or(SearchContextSize::Low) // Default to Low on invalid input
+    }
+}
+
+impl From<String> for SearchContextSize {
+    fn from(s: String) -> Self {
+        Self::from(s.as_str())
     }
 }
 
@@ -353,9 +465,23 @@ pub struct WebSearchTool {
 }
 
 impl WebSearchTool {
-    pub fn new() {}
+    pub fn from_preview() -> WebSearchToolBuilder {
+        WebSearchToolBuilder::from_preview()
+    }
 
-    pub fn preview() -> Self {
+    pub fn from_preview_2025_03_11() -> WebSearchToolBuilder {
+        WebSearchToolBuilder::from_preview_2025_03_11()
+    }
+}
+
+pub struct WebSearchToolBuilder {
+    variant: WebSearchVariant,
+    search_context_size: Option<SearchContextSize>,
+    user_location: Option<UserLocation>,
+}
+
+impl WebSearchToolBuilder {
+    pub fn from_preview() -> Self {
         Self {
             variant: WebSearchVariant::Preview,
             search_context_size: None,
@@ -363,7 +489,7 @@ impl WebSearchTool {
         }
     }
 
-    pub fn preview_2025_03_11() -> Self {
+    pub fn from_preview_2025_03_11() -> Self {
         Self {
             variant: WebSearchVariant::Preview2025_03_11,
             search_context_size: None,
@@ -371,14 +497,27 @@ impl WebSearchTool {
         }
     }
 
-    pub fn search_context_size(mut self, value: SearchContextSize) -> Self {
-        self.search_context_size = Some(value);
+    pub fn variant(mut self, value: impl Into<WebSearchVariant>) -> Self {
+        self.variant = value.into();
+        self
+    }
+
+    pub fn search_context_size(mut self, value: impl Into<SearchContextSize>) -> Self {
+        self.search_context_size = Some(value.into());
         self
     }
 
     pub fn user_location(mut self, value: UserLocation) -> Self {
         self.user_location = Some(value);
         self
+    }
+
+    pub fn build(self) -> Result<WebSearchTool, BuilderError> {
+        Ok(WebSearchTool {
+            variant: self.variant,
+            search_context_size: self.search_context_size,
+            user_location: self.user_location,
+        })
     }
 }
 
@@ -472,6 +611,20 @@ pub struct MCPTool {
 }
 
 impl MCPTool {
+    pub fn new(server_label: impl Into<String>, server_url: impl Into<String>) -> MCPToolBuilder {
+        MCPToolBuilder::new(server_label, server_url)
+    }
+}
+
+pub struct MCPToolBuilder {
+    server_label: String,
+    server_url: String,
+    allowed_tools: Option<AllowedTools>,
+    headers: Option<HashMap<String, String>>,
+    require_approval: Option<RequireApproval>,
+}
+
+impl MCPToolBuilder {
     pub fn new(server_label: impl Into<String>, server_url: impl Into<String>) -> Self {
         Self {
             server_label: server_label.into(),
@@ -495,6 +648,24 @@ impl MCPTool {
     pub fn require_approval(mut self, value: RequireApproval) -> Self {
         self.require_approval = Some(value);
         self
+    }
+
+    pub fn build(self) -> Result<MCPTool, BuilderError> {
+        if self.server_label.is_empty() {
+            return Err(BuilderError::Input(InputError::EmptyServerLabel));
+        }
+
+        if self.server_url.is_empty() {
+            return Err(BuilderError::Input(InputError::EmptyServerUrl));
+        }
+
+        Ok(MCPTool {
+            server_label: self.server_label,
+            server_url: self.server_url,
+            allowed_tools: self.allowed_tools,
+            headers: self.headers,
+            require_approval: self.require_approval,
+        })
     }
 }
 
@@ -529,8 +700,38 @@ pub struct CodeInterpreterTool {
 }
 
 impl CodeInterpreterTool {
+    pub fn new(container: CodeInterpreterContainer) -> CodeInterpreterToolBuilder {
+        CodeInterpreterToolBuilder::new(container)
+    }
+}
+
+pub struct CodeInterpreterToolBuilder {
+    container: CodeInterpreterContainer,
+}
+
+impl CodeInterpreterToolBuilder {
     pub fn new(container: CodeInterpreterContainer) -> Self {
         Self { container }
+    }
+
+    pub fn build(self) -> Result<CodeInterpreterTool, BuilderError> {
+        if let CodeInterpreterContainer::IDS {
+            file_ids,
+            type_field,
+        } = &self.container
+        {
+            if file_ids.is_none() {
+                return Err(BuilderError::Input(InputError::EmptyFileIds));
+            }
+
+            if type_field.is_empty() {
+                return Err(BuilderError::Input(InputError::EmptyTypeField));
+            }
+        }
+
+        Ok(CodeInterpreterTool {
+            container: self.container,
+        })
     }
 }
 
@@ -701,8 +902,36 @@ impl Default for ImageGenerationTool {
 }
 
 impl ImageGenerationTool {
+    pub fn new() -> ImageGenerationToolBuilder {
+        ImageGenerationToolBuilder::new()
+    }
+}
+
+pub struct ImageGenerationToolBuilder {
+    background: Option<ImageGenerationBackground>,
+    input_image_mask: Option<InputImageMask>,
+    model: Option<OpenAIModelId>,
+    moderation: Option<String>,
+    output_compression: Option<usize>,
+    output_format: Option<ImageGenerationOutputFormat>,
+    partial_image: Option<usize>,
+    quality: Option<ImageGenerationQuality>,
+    size: Option<ImageGenerationSize>,
+}
+
+impl ImageGenerationToolBuilder {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            background: None,
+            input_image_mask: None,
+            model: None,
+            moderation: None,
+            output_compression: None,
+            output_format: None,
+            partial_image: None,
+            quality: None,
+            size: None,
+        }
     }
 
     pub fn background(mut self, value: impl Into<String>) -> Result<Self, ConversionError> {
@@ -752,6 +981,33 @@ impl ImageGenerationTool {
         self.size = Some(ImageGenerationSize::from_str(&value.into())?);
         Ok(self)
     }
+
+    pub fn build(self) -> Result<ImageGenerationTool, BuilderError> {
+        Ok(ImageGenerationTool {
+            background: self.background,
+            input_image_mask: self.input_image_mask,
+            model: self.model,
+            moderation: self.moderation,
+            output_compression: self.output_compression,
+            output_format: self.output_format,
+            partial_image: self.partial_image,
+            quality: self.quality,
+            size: self.size,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct LocalShellTool;
+
+impl LocalShellTool {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn build(self) -> Result<LocalShellTool, BuilderError> {
+        Ok(LocalShellTool)
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -774,7 +1030,7 @@ pub enum Tool {
     #[serde(rename = "image_generation")]
     ImageGeneration(ImageGenerationTool),
     #[serde(rename = "local_shell")]
-    LocalShell,
+    LocalShell(LocalShellTool),
 }
 
 impl From<FileSearchTool> for Tool {
@@ -899,6 +1155,23 @@ impl TryFrom<Tool> for ImageGenerationTool {
     }
 }
 
+impl From<LocalShellTool> for Tool {
+    fn from(tool: LocalShellTool) -> Self {
+        Self::LocalShell(tool)
+    }
+}
+
+impl TryFrom<Tool> for LocalShellTool {
+    type Error = ConversionError;
+
+    fn try_from(tool: Tool) -> Result<Self, Self::Error> {
+        match tool {
+            Tool::LocalShell(inner) => Ok(inner),
+            _ => Err(ConversionError::TryFrom("Tool".to_string())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -906,7 +1179,7 @@ mod tests {
 
     #[test]
     fn it_builds_web_search_tool() {
-        let preview: Tool = WebSearchTool::preview()
+        let preview: Tool = WebSearchTool::from_preview()
             .search_context_size(SearchContextSize::High)
             .user_location(
                 UserLocation::new()
@@ -915,8 +1188,10 @@ mod tests {
                     .region("Europe")
                     .timezone("UTC+3"),
             )
+            .build()
+            .unwrap()
             .into();
-        let preview_2025_03_11: Tool = WebSearchTool::preview_2025_03_11()
+        let preview_2025_03_11: Tool = WebSearchTool::from_preview_2025_03_11()
             .search_context_size(SearchContextSize::High)
             .user_location(
                 UserLocation::new()
@@ -925,6 +1200,8 @@ mod tests {
                     .region("Bay Area")
                     .timezone("UTC-7"),
             )
+            .build()
+            .unwrap()
             .into();
 
         let preview_expected = json!({
@@ -976,6 +1253,8 @@ mod tests {
                 )
                 .unwrap(),
             )
+            .build()
+            .unwrap()
             .into();
 
         let expected = json!({
@@ -1017,6 +1296,8 @@ mod tests {
             false,
         )
         .description("test-description")
+        .build()
+        .unwrap()
         .into();
 
         let expected = json!({
@@ -1038,7 +1319,10 @@ mod tests {
 
     #[test]
     fn it_builds_computer_use() {
-        let tool: Tool = ComputerUseTool::new(1080.0, 1920.0, "test-environment").into();
+        let tool: Tool = ComputerUseTool::new(1080.0, 1920.0, "test-environment")
+            .build()
+            .unwrap()
+            .into();
 
         let expected = json!({
             "type": "computer_use_preview",
@@ -1066,6 +1350,8 @@ mod tests {
                 vec!["allowed-tool-1", "allowed-tool-2"],
                 vec!["allowed-tool-3"],
             ))
+            .build()
+            .unwrap()
             .into();
 
         let expected = json!({
@@ -1096,6 +1382,8 @@ mod tests {
     fn it_builds_code_interpreter() {
         let tool: Tool =
             CodeInterpreterTool::new(CodeInterpreterContainer::from_ids(vec!["id-1", "id-2"]))
+                .build()
+                .unwrap()
                 .into();
 
         let expected = json!({
@@ -1127,6 +1415,8 @@ mod tests {
             .unwrap()
             .size("1024x1024")
             .unwrap()
+            .build()
+            .unwrap()
             .into();
 
         let expected = json!({
@@ -1150,7 +1440,7 @@ mod tests {
 
     #[test]
     fn it_builds_local_shell() {
-        let tool = Tool::LocalShell;
+        let tool: Tool = LocalShellTool::new().build().unwrap().into();
 
         let expected = json!({
             "type": "local_shell"
